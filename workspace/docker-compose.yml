@@ -1,0 +1,9 @@
+version: '3.8'
+
+services:
+  dev-env:
+    build: .
+    volumes:
+      - ..:/app
+    tty: true
+    stdin_open: true
