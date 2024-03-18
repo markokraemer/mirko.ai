@@ -2,12 +2,27 @@ import os
 from abilities import TerminalOps, RetrievalOps
 from approvaltests.approvals import verify
 
+def assert_tool_fields(schema):
+    """
+    Check some basic fields on an OpenAI function call tool definition.
+    If we wanted to be rigorious we could use the jsonschema, but this is a start.
+    """
+    for tool in schema: 
+        assert tool['type'] == 'function'
+        assert tool['function']
+        assert tool['function']['name']
+        assert tool['function']['description']
+        assert tool['function']['parameters']
 
-def test_schema_terminal():
-    verify(TerminalOps.schema())
+def test_terminal_schema():
+    subject = TerminalOps.schema()
+    assert_tool_fields(subject)
+    verify(subject)
 
-def test_schema_retrieval():
-    verify(RetrievalOps.schema())
+def test_retrieval_schema():
+    subject = RetrievalOps.schema()
+    assert_tool_fields(subject)
+    verify(subject)
 
 if os.getenv("INTEGRATION"):
     def test_send_ls():
