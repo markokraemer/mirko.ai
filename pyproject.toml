@@ -1,0 +1,19 @@
+[tool.poetry]
+name = "mirko-ai"
+version = "0.1.0"
+description = "Open-source Devin implementation."
+authors = ["null"]
+license = "MIT"
+readme = "README.md"
+packages = [{include = "mirko"}]
+
+[tool.poetry.dependencies]
+python = "^3.12"
+docker = "^7.0.0"
+pytest = "^8.1.1"
+pytest-approvaltests = "^0.2.4"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
