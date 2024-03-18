@@ -5,7 +5,11 @@ description = "Open-source Devin implementation."
 authors = ["null"]
 license = "MIT"
 readme = "README.md"
-packages = [{include = "mirko"}]
+packages = [
+    {include = "abilities"},
+    {include = "layers"},
+    {include = "memory"}
+]
 
 [tool.poetry.dependencies]
 python = "^3.12"
