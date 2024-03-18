@@ -28,3 +28,23 @@ https://github.com/markokraemer/mirko.ai/issues/19
 ––– These topics will give us an fully intermediate-working version. Then we have all the subsequent issues to get it to Devin-level https://snipboard.io/CSVgv7.jpg.
 
 https://github.com/markokraemer/mirko.ai/issues All the High Priority issues are ready to be worked on. WIP meaning its still missing some information from my end.
+
+## Setup
+
+```
+python -m venv venv
+source venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
+Run tests
+```
+python -m pytest
+```
+
+Include tests that require docker workspace running.
+```
+INTEGRATION=1 python -m pytest
+```
+
+See `workspace` dir for docker setup.
