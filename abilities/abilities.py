@@ -48,18 +48,21 @@ class TerminalOps(Ops):
         """
         return [
             {
-                "name": TerminalOps.send_command.__name__,
-                "description": TerminalOps.send_command.__doc__,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "command": {
-                            "type": "string",
-                            "description": "The command to be executed in the terminal.",
-                        }
+                "type": "function",
+                "function": {
+                    "name": TerminalOps.send_command.__name__,
+                    "description": TerminalOps.send_command.__doc__,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "command": {
+                                "type": "string",
+                                "description": "The command to be executed in the terminal.",
+                            }
+                        },
+                        "required": ["command"],
                     },
-                    "required": ["command"],
-                },
+                }
             }
         ]
 
@@ -91,21 +94,24 @@ class RetrievalOps(Ops):
         """
         return [
             {
-                "name": RetrievalOps.get_file_tree.__name__,
-                "description": RetrievalOps.get_file_tree.__doc__,
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "path": {
-                            "type": "string",
-                            "description": "Directory to list relative to current",
+                "type": "function",
+                "function": {
+                    "name": RetrievalOps.get_file_tree.__name__,
+                    "description": RetrievalOps.get_file_tree.__doc__,
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "path": {
+                                "type": "string",
+                                "description": "Directory to list relative to current",
+                            },
+                            "depth": {
+                                "type": "number",
+                                "description": "Depth limit, default 1",
+                            }
                         },
-                        "depth": {
-                            "type": "number",
-                            "description": "Depth limit, default 1",
-                        }
+                        "required": ["path"],
                     },
-                    "required": ["path"],
-                },
+                }
             }
         ]
