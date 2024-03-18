@@ -1,0 +1,1 @@
+[{'name': 'get_file_tree', 'description': '\n        List path recursively with limited depth. Path is relative to current dir.\n        ', 'parameters': {'type': 'object', 'properties': {'path': {'type': 'string', 'description': 'Directory to list relative to current'}, 'depth': {'type': 'number', 'description': 'Depth limit, default 1'}}, 'required': ['path']}}]
