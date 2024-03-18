@@ -1,1 +1,0 @@
-[{'name': 'send_command', 'description': '\n        Run command in the terminal and wait for the result\n        ', 'parameters': {'type': 'object', 'properties': {'command': {'type': 'string', 'description': 'The command to be executed in the terminal.'}}, 'required': ['command']}}]
