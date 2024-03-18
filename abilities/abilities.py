@@ -1,14 +1,13 @@
 from dataclasses import dataclass
 from abc import ABC, abstractmethod
 import docker
-
+import json
 
 @dataclass
 class OpsResult:
     ok: bool
     exit_code: int
     output: bytes | None
-    paths: list[str]
 
 
 class Ops(ABC):
@@ -18,7 +17,13 @@ class Ops(ABC):
         Returns the JSON schema for OpenAI function calls.
         """
         pass
-
+    def ok_response(self, data: dict) -> OpsResult:
+        """
+        Create an successfull OpsResult with data as the output json.
+        """
+        text = json.dumps(data, indent=2)
+        output_bytes = text.encode('utf-8')
+        return OpsResult(ok=True, exit_code=0, output=output_bytes)
 
 class TerminalOps(Ops):
     def __init__(self, container_name: str):
@@ -33,8 +38,7 @@ class TerminalOps(Ops):
         return OpsResult(
             ok=(result.exit_code == 0),
             output=result.output,
-            exit_code=result.exit_code,
-            paths=[]
+            exit_code=result.exit_code
         )
 
     @staticmethod
@@ -73,15 +77,10 @@ class RetrievalOps(Ops):
         result = self.container.exec_run(command)
         listed_paths = result.output.decode('utf-8').split('\0')
         if result.exit_code == 0:
-            return OpsResult(
-                ok=True,
-                output=None,
-                paths=listed_paths,
-                exit_code=result.exit_code
-            )
+            return self.ok_response({'paths': listed_paths})
         else:
             return OpsResult(
-                ok=False, output=result.output, exit_code=result.exit_code, paths=[]
+                ok=False, output=result.output, exit_code=result.exit_code
             )
 
     
