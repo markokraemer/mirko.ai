@@ -32,9 +32,10 @@ https://github.com/markokraemer/mirko.ai/issues All the High Priority issues are
 ## Setup
 
 ```
-python -m venv venv
-source venv/bin/activate
-python -m pip install -r requirements.txt
+*** Requires Poetry for dependency management (https://python-poetry.org/) ***
+
+poetry install
+
 ```
 
 Run tests
