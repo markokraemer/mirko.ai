@@ -17,9 +17,6 @@ docker-compose up --build -d
 
 # Run a shell
 docker-compose exec dev-env bash
-
-# When done, if detached
-docker-compose down
 ```
 
 ## Using the docker env
@@ -38,3 +35,25 @@ poetry install --with dev
 
 OPENAI_API_KEY=X poetry run pytest tests/ -k "not openai"
 ```
+
+Using NVM, if you want to use the non-default Node.
+```
+nvm install 18.19.1
+node --version
+npm install -g rimraf
+rimraf --help
+```
+
+## Cleanup
+
+```
+# When done, if detached
+docker-compose down
+
+# Optionally, delete container
+docker compose rm
+```
+
+## Image features
+* pyenv with Python 3.12
+* NVM with Node 20.11.1
