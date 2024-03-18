@@ -40,12 +40,12 @@ poetry install
 
 Run tests
 ```
-python -m pytest
+poetry run pytest
 ```
 
 Include tests that require docker workspace running. Can use `-s` to show output.
 ```
-INTEGRATION=1 python -m pytest
+INTEGRATION=1 poetry run pytest
 ```
 
 See `workspace` dir for docker setup.
