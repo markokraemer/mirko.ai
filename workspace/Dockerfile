@@ -1,4 +1,5 @@
-FROM ubuntu:latest
+# Latest LTS as of March 2024
+FROM ubuntu:22.04
 
 ENV DEBIAN_FRONTEND=noninteractive
 
@@ -42,7 +43,19 @@ RUN pyenv install 3.12 && pyenv install 3.8 && pyenv global 3.12
 # Verify Python installation
 RUN python --version && python3 --version
 
-RUN ssh-keyscan -H github.com >> ~/.ssh/known_hosts
+# Install NVM
+ENV NVM_DIR /usr/local/nvm
+ENV NODE_VERSION 20.11.1
+RUN mkdir -p $NVM_DIR \
+    && curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.7/install.sh | bash
+SHELL ["/bin/bash", "-c"]
+RUN source $NVM_DIR/nvm.sh \
+    && nvm install $NODE_VERSION \
+    && nvm alias default $NODE_VERSION \
+    && nvm use default
+
+
+RUN mkdir -p ~/.ssh && ssh-keyscan -H github.com >> ~/.ssh/known_hosts
 
 # Using HTTP/1.1 resolved this error on M1 w/ OSX 14.4:
 # "RPC failed; curl 92 HTTP/2 stream 0 was not closed cleanly"
