@@ -43,7 +43,7 @@ Run tests
 python -m pytest
 ```
 
-Include tests that require docker workspace running.
+Include tests that require docker workspace running. Can use `-s` to show output.
 ```
 INTEGRATION=1 python -m pytest
 ```
