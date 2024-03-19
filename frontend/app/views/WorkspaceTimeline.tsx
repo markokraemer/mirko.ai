@@ -1,14 +1,14 @@
 import React from "react";
 
 import { Flex, HStack, IconButton } from "@chakra-ui/react";
-import { MdMenu } from "react-icons/md";
 import { Timeline } from '../components/Timeline'
 import { Workspace } from '../components/Workspace'
 
-export const WorkspaceTimeline = ({ collapse, setCollapse }) => {
+interface WorkspaceTimelineProps {}
+
+export const WorkspaceTimeline: React.FC<WorkspaceTimelineProps> = () => {
 
   return (
-    // <Flex padding={0}>
         <HStack w="full" h="100vh" bg="white" padding={1}>
           <Flex
             as="aside"
@@ -22,27 +22,6 @@ export const WorkspaceTimeline = ({ collapse, setCollapse }) => {
             transition="ease-in-out .2s"
             borderRadius="2xl"
           >
-
-            <Flex
-                w="full"
-                h={12}
-                bg="white"
-                alignItems="start"
-                justifyContent="start"
-                flexDirection="column"
-                // position="relative"
-                borderRadius="2xl"
-                marginBottom={4}
-                padding={2}
-            >
-                <IconButton
-                    aria-label="Menu Colapse"
-                    icon={<MdMenu />}
-                    color="black"
-                    bg="gray.100"
-                    onClick={() => setCollapse(!collapse)}
-                />
-            </Flex>
             <Timeline />
           </Flex>
           <Flex
@@ -60,6 +39,5 @@ export const WorkspaceTimeline = ({ collapse, setCollapse }) => {
             <Workspace />
           </Flex>
         </HStack>
-    // </Flex>
   );
 };

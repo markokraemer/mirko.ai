@@ -1,13 +1,14 @@
+'use client'
+
+import { useState } from 'react';
 
 import { Flex, HStack } from "@chakra-ui/react";
 import React from "react";
 import { Sidebar } from "./components/Sidebar";
 import { WorkspaceTimeline } from "./views/WorkspaceTimeline";
-import './App.css';
 
-function App() {
-
-  const [collapse, setCollapse] = React.useState(false);
+export default function Home() {
+  const [collapse, setCollapse] = useState(false);
 
   return (
     <div className="App">
@@ -25,7 +26,7 @@ function App() {
         transition="ease-in-out .2s"
         borderRadius="2xl"
       >
-        <Sidebar collapse={collapse} />
+        <Sidebar collapse={collapse} setCollapse={setCollapse} />
       </Flex>
       <Flex
         as="main"
@@ -38,11 +39,9 @@ function App() {
         position="relative"
         borderRadius="2xl"
       >
-          <WorkspaceTimeline collapse={collapse} setCollapse={setCollapse} />
+        <WorkspaceTimeline />
       </Flex>
     </HStack>
     </div>
   );
 }
-
-export default App;
