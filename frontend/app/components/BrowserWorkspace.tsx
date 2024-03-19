@@ -1,7 +1,9 @@
 import React from "react";
 import { Flex, Text } from "@chakra-ui/react";
 
-export const BrowserWorkspace = ({ collapse }) => {
+interface BrowserWorkspaceProps {}
+
+export const BrowserWorkspace: React.FC<BrowserWorkspaceProps> = () => {
 
   return (
         <Flex

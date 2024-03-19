@@ -1,13 +1,16 @@
 import { Avatar, Flex, IconButton, Text } from "@chakra-ui/react";
 import { MdOutlineMoreHoriz } from "react-icons/md";
 
-export const AvatarBox = ({ collapse }) => (
+interface AvatarBoxProps {
+  collapse: boolean;
+}
+
+export const AvatarBox: React.FC<AvatarBoxProps>  = ({ collapse }) => (
   <Flex
     borderWidth={collapse ? 1 : 0}
     borderColor="gray.100"
     borderRadius="full"
     w="full"
-    p={2}
     alignItems="center"
     justifyContent="space-between"
     gap={2}

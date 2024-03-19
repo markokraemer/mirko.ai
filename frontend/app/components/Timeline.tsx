@@ -2,8 +2,9 @@ import React from "react";
 import { Flex, Input, Text, IconButton } from "@chakra-ui/react";
 import { MdOutlineSend } from "react-icons/md";
 
+interface TimelineProps {}
 
-export const Timeline = ({ collapse }) => {
+export const Timeline: React.FC<TimelineProps> = () => {
 
   return (
         <Flex
@@ -45,7 +46,7 @@ export const Timeline = ({ collapse }) => {
                 paddingLeft={4}
                 paddingRight={4}
             >
-                <Input placeholder='Basic usage' marginRight={2} />
+                <Input placeholder='Ask MirkoAI' marginRight={2} />
                 <IconButton aria-label='Search database' icon={<MdOutlineSend />} />
             </Flex> 
         </Flex> 

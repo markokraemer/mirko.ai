@@ -1,7 +1,9 @@
 import React from "react";
 import { Flex, Text } from "@chakra-ui/react";
 
-export const EditorWorkspace = ({ collapse }) => {
+interface EditorWorkspaceProps {}
+
+export const PlannerWorkspace: React.FC<EditorWorkspaceProps> = () => {
 
   return (
         <Flex
@@ -16,7 +18,7 @@ export const EditorWorkspace = ({ collapse }) => {
             borderRadius="2xl"
         >
             <Text fontSize={50} color="gray.300">
-                Editor Workspace
+                Planner Workspace
             </Text>
         </Flex> 
   );
