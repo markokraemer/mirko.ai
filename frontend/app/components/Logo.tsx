@@ -8,6 +8,7 @@ export const Logo = ({ collapse }) => (
     justifyContent="space-between"
     flexDirection={collapse ? "row" : "column"}
     gap={4}
+    color="white"
   >
     <Box display="flex" alignItems="center" gap={2}>
       <Icon as={AiFillThunderbolt} fontSize={30} />

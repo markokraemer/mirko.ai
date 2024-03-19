@@ -27,7 +27,7 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapse, setCollapse }) => (
         aria-label="Menu Colapse"
         icon={<MdMenu />}
         color="black"
-        bg="white"
+        bg="gray.300"
         onClick={() => setCollapse(!collapse)}
       />
       <AvatarBox collapse={collapse} />

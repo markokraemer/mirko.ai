@@ -9,12 +9,12 @@ interface WorkspaceTimelineProps {}
 export const WorkspaceTimeline: React.FC<WorkspaceTimelineProps> = () => {
 
   return (
-        <HStack w="full" h="100vh" bg="white" padding={1}>
+        <HStack w="full" h="100vh" bg="gray.900" padding={1}>
           <Flex
             as="aside"
             w="full"
             h="full"
-            bg="gray.100"
+            bg="gray.700"
             alignItems="center"
             padding={4}
             flexDirection="column"
@@ -28,7 +28,7 @@ export const WorkspaceTimeline: React.FC<WorkspaceTimelineProps> = () => {
             as="aside"
             w="full"
             h="full"
-            bg="gray.100"
+            bg="gray.700"
             alignItems="center"
             justifyContent="center"
             flexDirection="column"

@@ -10,7 +10,7 @@ export const PlannerWorkspace: React.FC<EditorWorkspaceProps> = () => {
             as="main"
             w="full"
             h="full"
-            bg="gray.100"
+            bg="gray.900"
             alignItems="center"
             justifyContent="center"
             flexDirection="column"

@@ -12,13 +12,13 @@ export default function Home() {
 
   return (
     <div className="App">
-      <HStack w="full" h="100vh" bg="white" padding={4}>
+      <HStack w="full" h="100vh" bg="gray.900" padding={4}>
       <Flex
         as="aside"
         w="full"
         h="full"
         maxW={collapse ? 350 : 100}
-        bg="gray.100"
+        bg="gray.700"
         alignItems="start"
         padding={6}
         flexDirection="column"
@@ -32,7 +32,7 @@ export default function Home() {
         as="main"
         w="full"
         h="full"
-        bg="gray.100"
+        bg="gray.700"
         alignItems="center"
         justifyContent="center"
         flexDirection="column"
