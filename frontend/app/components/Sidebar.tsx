@@ -18,9 +18,10 @@ export const Sidebar: React.FC<SidebarProps> = ({ collapse, setCollapse }) => (
     </Box>
     <Flex
       alignItems="center"
-      justifyContent="center"
-      flexDirection="column"
+      justifyContent={collapse ? "space-between" : "center"}
+      flexDirection={collapse ? "row-reverse" : "column"}
       position="relative"
+      w="full"
     >
       <IconButton
         aria-label="Menu Colapse"
