@@ -1,4 +1,4 @@
-// import Link from "next/link";
+import Link from "next/link";
 import {
   ListIcon,
   Link as LinkChakra,
@@ -9,7 +9,22 @@ import {
 } from "@chakra-ui/react";
 import React from "react";
 
-export const NavItem = ({ item, isActive, collapse }) => {
+import { IconType } from "react-icons";
+
+interface NavItemProps {
+  item: {
+    type: string;
+    label: string;
+    icon?: IconType;
+    notifications?: number;
+    messages?: number;
+  };
+  isActive: boolean;
+  collapse: boolean;
+}
+
+
+export const NavItem: React.FC<NavItemProps> = ({ item, isActive, collapse }) => {
   const { label } = item;
 
   if (item.type === "link") {
@@ -18,13 +33,13 @@ export const NavItem = ({ item, isActive, collapse }) => {
       <Box display="flex" alignItems="center" my={6} justifyContent="center">
         <LinkChakra
           href=""
-        //   as={Link}
+          as={Link}
           gap={1}
           display="flex"
           alignItems="center"
           _hover={{ textDecoration: "none", color: "black" }}
           fontWeight="medium"
-          color={isActive ? "black" : "gray.400"}
+          color={isActive ? "white" : "gray.400"}
           w="full"
           justifyContent={!collapse ? "center" : ""}
         >

@@ -11,7 +11,7 @@ export const Timeline: React.FC<TimelineProps> = () => {
             as="main"
             w="full"
             h="full"
-            bg="white"
+            bg="gray.700"
             alignItems="center"
             justifyContent="center"
             flexDirection="column"
@@ -22,7 +22,7 @@ export const Timeline: React.FC<TimelineProps> = () => {
                 as="main"
                 w="full"
                 h="full"
-                bg="white"
+                bg="gray.900"
                 alignItems="center"
                 justifyContent="center"
                 flexDirection="column"
@@ -37,7 +37,7 @@ export const Timeline: React.FC<TimelineProps> = () => {
                 as="main"
                 w="full"
                 height={24}
-                bg="white"
+                bg="gray.900"
                 alignItems="center"
                 justifyContent="center"
                 flexDirection="row"
@@ -45,9 +45,10 @@ export const Timeline: React.FC<TimelineProps> = () => {
                 borderRadius="2xl"
                 paddingLeft={4}
                 paddingRight={4}
+                marginTop={2}
             >
                 <Input placeholder='Ask MirkoAI' marginRight={2} />
-                <IconButton aria-label='Search database' icon={<MdOutlineSend />} />
+                <IconButton bg="gray.300" aria-label='Search database' icon={<MdOutlineSend />} />
             </Flex> 
         </Flex> 
   );

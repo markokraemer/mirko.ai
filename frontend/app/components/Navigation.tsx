@@ -4,8 +4,21 @@ import {
   MdHistory,
 } from "react-icons/md";
 import { NavItem } from "./NavItem";
+import { IconType } from "react-icons";
 
-const items = [
+interface NavigationProps {
+  collapse: boolean;
+}
+
+interface NavItemType {
+  type: "link" | "header";
+  label: string;
+  icon?: IconType;
+  path?: string;
+  notifications?: number;
+}
+
+const items: NavItemType[] = [
   {
     type: "link",
     label: "Workspace",
@@ -25,10 +38,10 @@ const items = [
   }
 ];
 
-export const Navigation = ({ collapse }) => (
-  <List w="full" my={8}>
+export const Navigation: React.FC<NavigationProps> = ({ collapse }) => (
+  <List w="full" my={8} color="white">
     {items.map((item, index) => (
-      <ListItem key={index}>
+      <ListItem key={index} color="white">
         <NavItem item={item} isActive={index === 0} collapse={collapse} />
       </ListItem>
     ))}

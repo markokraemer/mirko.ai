@@ -7,9 +7,6 @@ interface AvatarBoxProps {
 
 export const AvatarBox: React.FC<AvatarBoxProps>  = ({ collapse }) => (
   <Flex
-    borderWidth={collapse ? 1 : 0}
-    borderColor="gray.100"
-    borderRadius="full"
     w="full"
     alignItems="center"
     justifyContent="space-between"
@@ -24,11 +21,12 @@ export const AvatarBox: React.FC<AvatarBoxProps>  = ({ collapse }) => (
         gap={4}
         justifyContent="center"
         alignItems="flex-start"
+        color="white"
       >
         <Text fontSize="sm" fontWeight="bold" pb="0" lineHeight={0}>
             John Doe
         </Text>
-        <Text as="small" color="gray.500" fontSize={12} lineHeight={0}>
+        <Text as="small" color="gray.300" fontSize={12} lineHeight={0}>
             john@doe.com
         </Text>
       </Flex>

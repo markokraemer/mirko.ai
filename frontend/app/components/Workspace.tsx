@@ -14,45 +14,43 @@ export const Workspace = () => {
         as="main"
         w="full"
         h="full"
-        bg="white"
+        bg="gray.900"
         alignItems="center"
         justifyContent="center"
         flexDirection="column"
         position="relative"
         borderRadius="2xl"
-        padding={4}
     >
         <Flex
             as="main"
             w="full"
-            bg="white"
+            bg="gray.700"
             alignItems="start"
             justifyContent="start"
             flexDirection="column"
             position="relative"
-            borderRadius="2xl"
+            borderTopRadius="2xl"
         >
-            <Tabs isFitted variant='enclosed'>
+            <Tabs variant='soft-rounded' margin={2}>
                 <TabList>
-                    <Tab onClick={() => setShowActiveWorkspace('terminal')}>Terminal</Tab>
-                    <Tab onClick={() => setShowActiveWorkspace('browser')}>Browser</Tab>
-                    <Tab onClick={() => setShowActiveWorkspace('editor')}>Editor</Tab>
-                    <Tab onClick={() => setShowActiveWorkspace('planner')}>Planner</Tab>
+                    <Tab color="white" bg={activeWorkspace === 'terminal' ? "gray.300" : "gray.900"} marginRight={2} onClick={() => setShowActiveWorkspace('terminal')}>Terminal</Tab>
+                    <Tab color="white" bg={activeWorkspace === 'browser' ? "gray.300" : "gray.900"} marginRight={2} onClick={() => setShowActiveWorkspace('browser')}>Browser</Tab>
+                    <Tab color="white" bg={activeWorkspace === 'editor' ? "gray.300" : "gray.900"} marginRight={2} onClick={() => setShowActiveWorkspace('editor')}>Editor</Tab>
+                    <Tab color="white" bg={activeWorkspace === 'planner' ? "gray.300" : "gray.900"} marginRight={2} onClick={() => setShowActiveWorkspace('planner')}>Planner</Tab>
                 </TabList>
             </Tabs>
-            <Divider  marginTop={2} marginBottom={2} />
+
         </Flex>
         <Flex
             as="main"
             w="full"
             h="full"
-            bg="gray.100"
+            bg="gray.700"
             alignItems="center"
             justifyContent="center"
             flexDirection="column"
             position="relative"
-            borderRadius="2xl"
-            margin
+            borderBottomRadius="2xl"
         >
             {activeWorkspace === 'terminal' && (<TerminalWorkspace/>)}
             {activeWorkspace === 'browser' && (<BrowserWorkspace/>)}
