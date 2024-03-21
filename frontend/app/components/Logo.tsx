@@ -1,7 +1,7 @@
 import { Box, Flex, Icon, IconButton, Text } from "@chakra-ui/react";
 import { AiFillThunderbolt, AiOutlineSearch } from "react-icons/ai";
 
-export const Logo = ({ collapse }) => (
+export const Logo = ({ collapse }: { collapse: boolean }) => (
   <Flex
     w="full"
     alignItems="center"
