@@ -1,5 +1,5 @@
 import os
-import pytest
+import json
 from abilities import TerminalOps, RetrievalOps, get_container_merged_dir
 from abilities.file_util import find_files
 from approvaltests.approvals import verify
@@ -50,7 +50,12 @@ def test_find_files_exclude_dirname(fs):
     found = find_files("/var/fakedata", 3)
     assert found == []
 
-
+def test_retrieval_ops_read_file_contents(fs):
+    fs.create_file("/var/fakedata/a.txt", contents="..contents..")
+    subject = RetrievalOps("/var/fakedata")
+    found = subject.read_file_contents("a.txt")
+    assert found.ok, found.output
+    assert found.output == '..contents..'
 
 if os.getenv("INTEGRATION"):
     def test_send_ls():
@@ -58,7 +63,7 @@ if os.getenv("INTEGRATION"):
 
     def test_list_tree():
         base_path = get_container_merged_dir("workspace-dev-env-1")
-        print(base_path)
         subject = RetrievalOps(base_path)
         print(subject.get_file_tree(".", 2))
+
         
