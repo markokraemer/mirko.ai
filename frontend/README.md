@@ -1,25 +1,23 @@
+# Mirko.ai Front-End
+
 This is a [Next.js](https://nextjs.org/) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
 
 ## Getting Started
 
-## Setup
 
-Requires NodeJS
+### Requirements
+* NodeJS >=21.0.0 (`nvm use 21.0.0`)
+* pnpm (`npm install -g pnpm `)
 
+### Setup
+```sh
+pnpm install
 ```
-npm install
-```
 
-## Available Scripts
+### Run locally
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
+```sh
 pnpm dev
-# or
-bun dev
 ```
 
 Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
