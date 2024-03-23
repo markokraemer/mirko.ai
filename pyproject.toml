@@ -6,9 +6,7 @@ authors = ["null"]
 license = "MIT"
 readme = "README.md"
 packages = [
-    {include = "abilities"},
-    {include = "layers"},
-    {include = "memory"}
+    {include = "core"},
 ]
 
 [tool.poetry.dependencies]
