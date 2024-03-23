@@ -4,6 +4,6 @@ services:
   dev-env:
     build: .
     volumes:
-      - ..:/app
+      - ../../working_directory:/app
     tty: true
     stdin_open: true
