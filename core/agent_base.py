@@ -5,11 +5,17 @@ import time
 import json
 import inspect
 import asyncio
+import logging
 
-from core.tools import TerminalTool, RetrievalTool, ToolResult
+from core.tools import TerminalTool, FilesTool, ToolResult
+from core.utils.llm import make_llm_api_call
+from core.utils.debug_logging import initialize_logging
 
 os.getenv("OPENAI_API_KEY")
 client = OpenAI()
+initialize_logging()
+
+
 
 # =========================
 # Base Assistant Class
@@ -57,54 +63,65 @@ class BaseAssistant:
 
     @staticmethod
     def get_run(thread_id, run_id):
-        while True:
-            run = client.beta.threads.runs.retrieve(
-                thread_id=thread_id,
-                run_id=run_id
-            )
-            if run.status != 'in_progress':
-                break
-            time.sleep(1)  # Wait for 1 second before checking the status again
+        run = client.beta.threads.runs.retrieve(
+        thread_id=thread_id,
+        run_id=run_id
+        )
         return run
 
     @staticmethod
-    def get_messages_in_thread(thread_id):
+    def get_messages_in_thread(thread_id, stringified=False):
         messages = client.beta.threads.messages.list(thread_id)
-        return messages
+        # Sort messages by 'created_at' to ensure they are in the correct order
+        sorted_messages = sorted(messages.data, key=lambda x: x.created_at)
+        if stringified:
+            string_messages = []
+            for message in sorted_messages:
+                role = message.role.upper()
+                # Assuming the first item in content list is the main text
+                content = message.content[0].text.value
+                string_messages.append(f"{role}: {content}")
+            return "\n\n".join(string_messages)
+        return sorted_messages
 
-    def generate_playground_access(self, thread_id):
-        playground_url = f'https://platform.openai.com/playground?assistant={self.assistant_id}&mode=assistant&thread={thread_id}'
-        print(f'Playground Access URL: {playground_url}')
+    async def check_run_status_and_execute_action(self, thread_id: str, run_id: str):
+        while True:
+            run = self.get_run(thread_id, run_id)
+            if run.status == "requires_action":
+                await self.execute_run_action(run_id, thread_id)
+                await asyncio.sleep(3)
+            elif run.status in ["in_progress", "queued", "cancelling"]:
+                await asyncio.sleep(3)                
+            elif run.status in ["completed", "cancelled", "failed", "expired"]:
+                break
 
-
-    @staticmethod
-    async def execute_run_action(run_id, thread_id):
+    async def execute_run_action(self, run_id, thread_id):
         run = BaseAssistant.get_run(thread_id, run_id)
         required_action = run.required_action if run.status == "requires_action" else None
-        print(f"Debug: Required action for run_id {run_id} is {required_action}")
+        logging.info(f"Debug: Required action for run_id {run_id} is {required_action}")
 
         if required_action and required_action.type == "submit_tool_outputs":
             tool_calls = required_action.submit_tool_outputs.tool_calls
             tool_outputs = []
-            print(f"Debug: Processing {len(tool_calls)} tool calls for submission.")
+            logging.info(f"Debug: Processing {len(tool_calls)} tool calls for submission.")
 
-            # Instantiate TerminalTool and RetrievalTool without hardcoded arguments
+            # Instantiate TerminalTool and FilesTool without hardcoded arguments
             terminal_tool = TerminalTool()
-            retrieval_tool = RetrievalTool()
+            files_tool = FilesTool()
 
             for tool_call in tool_calls:
                 function_name = tool_call.function.name
                 arguments = json.loads(tool_call.function.arguments)
-                print(f"Debug: Attempting to execute function {function_name} with arguments {arguments}")
+                logging.info(f"Debug: Attempting to execute function {function_name} with arguments {arguments}")
 
                 # Dynamically call the function with the provided arguments
                 try:
-                    # Attempt to find the function in terminal_tool or retrieval_tool instances
+                    # Attempt to find the function in terminal_tool or files_tool instances
                     function = None
-                    for tool_instance in [terminal_tool, retrieval_tool]:
+                    for tool_instance in [terminal_tool, files_tool]:
                         if hasattr(tool_instance, function_name):
                             function = getattr(tool_instance, function_name)
-                            print(f"Debug: Found function {function_name} in {type(tool_instance).__name__}")
+                            logging.info(f"Debug: Found function {function_name} in {type(tool_instance).__name__}")
                             break
 
                     if function:
@@ -113,16 +130,16 @@ class BaseAssistant:
                             output = await function(**arguments)
                         else:
                             output = function(**arguments)
-                        print(f"Debug: Function {function_name} executed successfully with output: {output}")
+                        logging.info(f"Debug: Function {function_name} executed successfully with output: {output}")
                         # Extract the output if it's an instance of ToolResult
                         if isinstance(output, ToolResult):
                             output = output.output
                     else:
                         output = "Function not found"
-                        print(f"Debug: Function {function_name} not found in TerminalTool or RetrievalTool instances")
+                        logging.info(f"Debug: Function {function_name} not found in TerminalTool or FilesTool instances")
                 except Exception as e:
                     output = f"An exception has occurred: {e}"
-                    print(f"Debug: Exception occurred while executing function {function_name}: {e}")
+                    logging.info(f"Debug: Exception occurred while executing function {function_name}: {e}")
 
                 tool_outputs.append({
                     "tool_call_id": tool_call.id,
@@ -136,63 +153,110 @@ class BaseAssistant:
                     run_id=run_id,
                     tool_outputs=tool_outputs
                 )
-                print(f"Debug: Successfully submitted tool outputs for run_id {run_id}")
+                logging.info(f"Debug: Successfully submitted tool outputs for run_id {run_id}")
             except Exception as e:
-                print(f"Failed to submit tool outputs for run_id {run_id}: {e}")
+                logging.info(f"Failed to submit tool outputs for run_id {run_id}: {e}")
+
+    def generate_next_action(self, thread_id):
+        messages_in_thread = self.get_messages_in_thread(thread_id, stringified=True)
+        messages = [
+            {
+                "role": "system",
+                "content": """     
+    You are the internal monologue of Mirko.ai the Expert AI Software Engineer. 
+
+    Context: Mirko.ai is an advanced AI software engineer, capable of independent problem-solving and decision-making within the realm of software development. Mirko.ai has been assigned with a user objective and is working iteratively to accomplish it.
+
+    As the internal monologue of Mirko.ai, you are reflecting on your current situation and planning your next steps towards achieving the user objective.
+
+    Output a JSON with: 
+    - Your observations, thoughts in a tree-of-thoughts, upcoming actions list, next action to conduct.
+
+ """
+            },
+            {
+                "role": "user",
+                "content": f""" Event History: {messages_in_thread} 
+                Working Memory: 
+"""
+            },
+        ]
+        response = make_llm_api_call(messages, model_name="gpt-4-turbo-preview")
+        new_message_contents = response.choices[0].message['content']
+        self.add_message(thread_id, new_message_contents, role="user")
+
+
+    def generate_playground_access(self, thread_id):
+        playground_url = f'https://platform.openai.com/playground?assistant={self.assistant_id}&mode=assistant&thread={thread_id}'
+        logging.info(f'Playground Access URL: {playground_url}')
 
 
 
 
+async def start_session_run(user_request):
 
-# =========================
-# Sequential Process Implementation
-# =========================
-
-def initialise_assistants():
     tools = []
     tools.extend(TerminalTool.schema())
-    tools.extend(RetrievalTool.schema())
-        
-    planner_assistant = BaseAssistant("Planner", "You are an Expert Planner.", tools)
-    planner_debate_assistant = BaseAssistant("Planner Internal Self", "You are the eval/analysis/debate of the Expert Planner. The internal monologue.", tools)
+    tools.extend(FilesTool.schema())
 
-    return planner_assistant, planner_debate_assistant
+    instructions = """
+    You are Mirko an Expert AI Software Engineer, a brilliant and meticulous Software Engineer – working iterately towards accomplish the user objective: you Plan, Implement, Validate, Adjust. You are an autonomous cognitive entity - you have all the abilities a human developer has. You have full autonomy to take your time to think, plan, implement changes, validate changes, test changes, readjust your plan. 
+
+    - Generate_task_list
+    - Process_task
+    - Send_web_browsing_instructions_to_browsing_agent(he reports back)
+    - Send_terminal_commands
+    - WM: Full Latest Directory Contents in Session, Open Tabs & past interactions, Open Terminal Sessions and most recent log, 
+    
+    Retrieval:
+    - Expand_File_tree
+    - Open_File
+    - Open_Files_in_Editor
+    - Read_directory_contents
+    - Read_file_contents
+
+    - Code_snippet_retrieval(query)
+
+    Files:
+    - Rename_file(current_file_path, new_file_path)
+    - Delete_file(file_path)
+    - Move_file(current_file_path, new_file_path)
+    - Edit_file_contents(instructions)
+
+    Terminal:
+    - New_terminal_session()
+    - Close_terminal_session(session_id)
+    - Send_terminal_command(session_id, command)
+    - get_session_log(session_id, timestamp/other-indicator)
+
+    Browsing:
+    - Send_browsing_instructions()
 
 
-# Planner
-# - Retrieve code snippets
-# - Create_task_list
+    dissect, think step by step... etc.. – have it as function calls too
 
-# Control/Validate
-# - Select_task
+    """    
 
-# Execution 
-# - Create_task_implementation_plan
-# - Generate_code_new_file_contents
-# - create_e2e_browsing_test_instructions
-# - Run_e2e_browsing_test
-# - run_terminal_command
+    assistant = BaseAssistant("Mirko.ai", instructions, tools)
 
-
-
-
-async def execute_sequential_process(content):
-    assistant = initialise_assistants()
+    # Initial User Request
     thread_id = assistant.start_new_thread()
-    assistant.add_message(thread_id, content, "user")
-    run_id = assistant.run_thread(thread_id, assistant.assistant_id)
-    run_details = assistant.get_run(thread_id, run_id)
-    print(f"Run details for {assistant.name}: {run_details}")
-    if run_details.status == 'requires_action':
-        await assistant.execute_run_action(run_id, thread_id)
-        messages = assistant.get_messages_in_thread(thread_id)
-    elif run_details.status != 'in_progress':
-        messages = assistant.get_messages_in_thread(thread_id)
-    print(f"Message thread {thread_id} for {assistant.name}: {messages}")
-
-    # Generate and print the playground access URL at the end of the sequential process
     assistant.generate_playground_access(thread_id)
+    assistant.add_message(thread_id, user_request, "user")
+    # Recursive self-debate Loop
+    while True:
+        run_id = assistant.run_thread(thread_id, assistant.assistant_id)
+        await assistant.check_run_status_and_execute_action(thread_id, run_id)
+        assistant.generate_next_action(thread_id)
+
+        # Sample usage of get_messages_in_thread with stringified=True
+        stringified_messages = assistant.get_messages_in_thread(thread_id, stringified=True)
+        logging.info(f"Stringified message thread {thread_id} for {assistant.name}: {stringified_messages}")
+
 
 if __name__ == "__main__":
-    content = "Create multiple files. Then get the file tree."
-    asyncio.run(execute_sequential_process(content))
+
+    user_request = "Build a simple Landing Page for my construction company. "        
+    asyncio.run(start_session_run(user_request))
+
+

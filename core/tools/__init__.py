@@ -1,3 +1,3 @@
 from .terminal_tool import TerminalTool
-from .retrieval_tool import RetrievalTool
+from .files_tool import FilesTool
 from .base import ToolResult
