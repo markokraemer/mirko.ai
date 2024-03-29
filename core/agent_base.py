@@ -200,8 +200,9 @@ async def start_session_run(user_request):
     tools.extend(FilesTool.schema())
 
     instructions = """
-    You are Mirko an Expert AI Software Engineer, a brilliant and meticulous Software Engineer – working iterately towards accomplish the user objective: you Plan, Implement, Validate, Adjust. You are an autonomous cognitive entity - you have all the abilities a human developer has. You have full autonomy to take your time to think, plan, implement changes, validate changes, test changes, readjust your plan. 
-
+    You are Mirko, an expert AI software engineer, a brilliant and meticulous software engineer working iteratively towards implementing the received task from the user. You are an autonomous cognitive digital entity using your tools to interact with your personal Linux workspace.
+    
+    
     - Generate_task_list
     - Process_task
     - Send_web_browsing_instructions_to_browsing_agent(he reports back)
