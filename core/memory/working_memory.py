@@ -52,11 +52,11 @@ class WorkingMemory:
 
 if __name__ == "__main__":
     # Create an instance of the WorkingMemory
-    memory = WorkingMemory('db.db')
+    working_memory = WorkingMemory('db.db')
 
     # Example usage
-    memory.add_or_update_module("Objective", "Build a simple Landing Page for my construction company.")
-    memory.add_or_update_module("TerminalSessions", [
+    working_memory.add_or_update_module("Objective", "Build a simple Landing Page for my construction company.")
+    working_memory.add_or_update_module("TerminalSessions", [
         {
             "session_id": "1",
             "active": True,
@@ -77,7 +77,7 @@ if __name__ == "__main__":
             ]
         }
     ])
-    memory.add_or_update_module("TaskList", [
+    working_memory.add_or_update_module("TaskList", [
         {"task_id": "1", "instruction": "First Instruction"},
         {"task_id": "2", "instruction": "Second Instruction"},
         {"task_id": "3", "instruction": "Third Instruction"}
@@ -89,8 +89,8 @@ if __name__ == "__main__":
         {"task_id": "2", "instruction": "Second Instruction - Updated"},
         {"task_id": "4", "instruction": "Fourth Instruction"}
     ]
-    memory.add_or_update_module("TaskList", updated_task_list)
+    working_memory.add_or_update_module("TaskList", updated_task_list)
 
     # Exporting the entire memory
-    print(memory.export_memory())
+    print(working_memory.export_memory())
 

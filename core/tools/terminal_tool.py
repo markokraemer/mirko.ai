@@ -44,8 +44,10 @@ class TerminalTool(Tool):
         try:
             command = f"tmux kill-session -t {session_id}"
             subprocess.run(command, shell=True, check=True)
-            # Delete the session module from working memory
-            self.working_memory.delete_module("Terminal_Sessions")
+            # Update the session module from working memory to remove the closed session
+            terminal_sessions = self.working_memory.get_module("Terminal_Sessions")
+            terminal_sessions = [session for session in terminal_sessions if session["session_id"] != session_id]
+            self.working_memory.add_or_update_module("Terminal_Sessions", terminal_sessions)
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to kill tmux session {session_id}")
 
@@ -162,16 +164,28 @@ if __name__ == "__main__":
     # Initialize the TerminalTool instance
     terminal_tool_instance = TerminalTool()
 
-    # Generate a new terminal session
-    generated_session_id = terminal_tool_instance.new_terminal_session()
-    print(f"Generated new terminal session ID: {generated_session_id}")
+    # Generate the first terminal session
+    first_session_id = terminal_tool_instance.new_terminal_session()
+    print(f"Generated first terminal session ID: {first_session_id}")
 
-    # Dispatch a single command to the newly created terminal session
-    command = "cd frontend && npm i && npm run dev"
-    execution_result = terminal_tool_instance.send_terminal_command(generated_session_id, command)
-    print(f"Dispatched command: {command}\nExecution Result: {execution_result.output}")
+    # Dispatch a command to the first terminal session
+    first_command = "cd frontend && npm install"
+    first_execution_result = terminal_tool_instance.send_terminal_command(first_session_id, first_command)
+    print(f"Dispatched command to first session: {first_command}\nExecution Result: {first_execution_result.output}")
 
-    # Terminate the terminal session
-    terminal_tool_instance.close_terminal_session(generated_session_id)
-    print(f"Terminal session with ID {generated_session_id} has been terminated.")
+    # Generate the second terminal session
+    second_session_id = terminal_tool_instance.new_terminal_session()
+    print(f"Generated second terminal session ID: {second_session_id}")
 
+    # Dispatch a command to the second terminal session
+    second_command = "cd backend && npm install"
+    second_execution_result = terminal_tool_instance.send_terminal_command(second_session_id, second_command)
+    print(f"Dispatched command to second session: {second_command}\nExecution Result: {second_execution_result.output}")
+
+    # Terminate the first terminal session
+    terminal_tool_instance.close_terminal_session(first_session_id)
+    print(f"First terminal session with ID {first_session_id} has been terminated.")
+
+    # # Terminate the second terminal session
+    # terminal_tool_instance.close_terminal_session(second_session_id)
+    # print(f"Second terminal session with ID {second_session_id} has been terminated.")
