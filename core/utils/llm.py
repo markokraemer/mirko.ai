@@ -21,7 +21,7 @@ GROQ_API_KEY = os.getenv('GROQ_API_KEY')
 
 def make_llm_api_call(messages, model_name, json_mode=False, temperature=0, max_tokens=None):
 
-    # litellm.set_verbose=True
+    litellm.set_verbose=True
 
     def attempt_api_call(api_call_func, max_attempts=3):
         for attempt in range(max_attempts):

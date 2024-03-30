@@ -2,7 +2,7 @@ import os
 from .base import Tool, ToolResult
 from ..utils.llm import make_llm_api_call
 from ..utils.file_utils import find_files, EXCLUDED_FILES, EXCLUDED_EXT, _should_exclude
-
+import json
 
 
 
@@ -44,11 +44,13 @@ class FilesTool(Tool):
                 },
                 {"role": "user", "content": f"This is the current content of the file you are editing '{file_path}':\n\n<current_content>{current_content}</current_content> \nYou are now implement the following instructions for {file_path}: {instructions}\n.\n.Respond in this JSON Format, OUTPUT EVERYTHING IN FOLLOWING JSON PROPERTIES, do not add new properties but output in File, FileName, newFileContents. Make sure to ONLY EDIT {file_path}. Strictly respond in this JSON Format:\n\n {{\n  \"File\": {{\n    \"FilePath\": \"{file_path}\",\n    \"newFileContents\": \"The whole file contents, the complete code – The contents of the new file with all instructions implemented perfectly. NEVER write comments. Keep the complete File Contents within this single JSON Property.\"}}\n}}\n"}
             ]
-            # Placeholder for make_llm_api_call function, which should be implemented
-            response_json = make_llm_api_call(messages, "gpt-4-turbo-preview", json_mode=True, max_tokens=4096) 
-            if not response_json or 'newFileContents' not in response_json:
-                raise ValueError("Invalid response from LLM API call")
-            new_content = response_json['newFileContents']
+            # Make LLM API call and parse the response
+            response = make_llm_api_call(messages, "gpt-4-turbo-preview", json_mode=True, max_tokens=4096) 
+            response_content = response.choices[0].message['content']
+            response_json = json.loads(response_content)
+            new_content = response_json["File"]["newFileContents"]
+
+            # Write the new content into the file
             with open(effective_path, 'w') as file:
                 file.write(new_content)
             return self.success_response(f"File {file_path} edited successfully based on instructions")
@@ -59,13 +61,15 @@ class FilesTool(Tool):
 
     def create_file(self, file_path: str) -> ToolResult:
         """
-        Create a file at file_path, path is relative to current dir
+        Create a file at file_path, path is relative to current dir. Create the directory too if it's given in the path.
         """
         effective_path = self._get_effective_path(file_path)
         if os.path.exists(effective_path):
             return self.fail_response("File already exists")
         try:
-            open(effective_path, 'w').close()
+            os.makedirs(os.path.dirname(effective_path), exist_ok=True)
+            with open(effective_path, 'w') as file:
+                file.close()
             return self.success_response(f"File {file_path} created successfully")
         except Exception as e:
             return ToolResult(success=False, output=str(e), exit_code=1)
@@ -348,3 +352,55 @@ class FilesTool(Tool):
                 },
             },
         ]
+
+
+if __name__ == "__main__":
+    # Initialize the FilesTool instance
+    files_tool_instance = FilesTool()
+
+    # Step 1: Example usage of creating a new file
+    new_file_path = "examples/new_sample.txt"
+    create_file_result = files_tool_instance.create_file(new_file_path)
+    print(f"Creating new file '{new_file_path}': {create_file_result.output}")
+    input("Press ENTER to continue...")
+
+    # Step 2: Example usage of moving the created file
+    moved_file_path = "examples/moved_sample.txt"
+    move_file_result = files_tool_instance.move_file(new_file_path, moved_file_path)
+    print(f"Moving file from '{new_file_path}' to '{moved_file_path}': {move_file_result.output}")
+    input("Press ENTER to continue...")
+
+    # Step 3: Example usage of editing file contents
+    edit_instructions = "Add a function to return the sum of two numbers."
+    edit_file_result = files_tool_instance.edit_file_contents(moved_file_path, edit_instructions)
+    print(f"Editing file '{moved_file_path}' with instructions '{edit_instructions}': {edit_file_result.output}")
+    input("Press ENTER to continue...")
+
+    # Step 4: Example usage of renaming the edited file
+    renamed_file_path = "examples/renamed_sample.txt"
+    rename_file_result = files_tool_instance.rename_file(moved_file_path, renamed_file_path)
+    print(f"Renaming file from '{moved_file_path}' to '{renamed_file_path}': {rename_file_result.output}")
+    input("Press ENTER to continue...")
+
+    # Step 5: Example usage of getting the file tree
+    file_tree_path = "examples"
+    file_tree_result = files_tool_instance.get_file_tree(file_tree_path)
+    print(f"File tree of '{file_tree_path}': {file_tree_result.output}")
+    input("Press ENTER to continue...")
+
+    # Step 6: Example usage of reading file contents
+    read_file_result = files_tool_instance.read_file_contents(renamed_file_path)
+    print(f"Contents of file '{renamed_file_path}': {read_file_result.output}")
+    input("Press ENTER to continue...")
+
+    # Step 7: Example usage of reading directory contents
+    list_directory_path = "examples"
+    list_directory_result = files_tool_instance.read_directory_contents(list_directory_path)
+    print(f"Contents of directory '{list_directory_path}': {list_directory_result.output}")
+    input("Press ENTER to continue...")
+    # Step 8: Example usage of deleting the renamed file
+    delete_file_result = files_tool_instance.delete_file(renamed_file_path)
+    print(f"Deleting file '{renamed_file_path}': {delete_file_result.output}")
+    input("Press ENTER to continue...")
+
+

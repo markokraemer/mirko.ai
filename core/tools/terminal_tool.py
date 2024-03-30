@@ -96,10 +96,6 @@ class TerminalTool(Tool):
                     "name": TerminalTool.new_terminal_session.__name__,
                     "description": TerminalTool.new_terminal_session.__doc__,
                     "parameters": {},
-                    "returns": {
-                        "type": "string",
-                        "description": "The session ID of the newly created terminal session.",
-                    }
                 },
             },
             {
@@ -129,33 +125,15 @@ class TerminalTool(Tool):
                         "properties": {
                             "session_id": {
                                 "type": "string",
-                                "description": "The session ID of the terminal session to send the command to.",
+                                "description": "The session ID to which the command will be sent.",
                             },
                             "command": {
                                 "type": "string",
-                                "description": "The command to send to the terminal session.",
+                                "description": "The command to be executed in the terminal session.",
                             }
                         },
                         "required": ["session_id", "command"],
                     },
-                    "returns": {
-                        "type": "object",
-                        "properties": {
-                            "success": {
-                                "type": "boolean",
-                                "description": "Indicates if the command was successfully sent and executed.",
-                            },
-                            "output": {
-                                "type": "string",
-                                "description": "The output message from the execution of the command.",
-                            },
-                            "exit_code": {
-                                "type": "number",
-                                "description": "The exit code of the command execution.",
-                            }
-                        },
-                        "required": ["success", "output", "exit_code"],
-                    }
                 },
             },
         ]
