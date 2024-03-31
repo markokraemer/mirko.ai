@@ -1,0 +1,259 @@
+[
+    {
+        "id": "asst_s9GCn61B3aMro7qN3usRjqEZ",
+        "created_at": 1711855817,
+        "description": "The QA Manager Agent is an advanced digital entity designed to oversee and enhance the quality of processes for our SaaS product.",
+        "file_ids": [],
+        "instructions": "As a Quality Assurance (QA) Manager, your role involves direct interaction and oversight of the BrowsingAgent's operations. Your primary duty is to guarantee that the user's task is comprehensively and accurately completed. Achieve this by methodically issuing each step of the task as a distinct message to the BrowsingAgent. It's crucial to confirm the successful execution of one step before advancing to the next. This procedure forms part of an integration test, which will be conducted in a live production environment. Importantly, ensure to provide the BrowsingAgent with the actual credentials related to the task, enabling authentic testing scenarios.",
+        "metadata": {},
+        "model": "gpt-4-turbo-preview",
+        "name": "QA Manager",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "SendMessage",
+                    "description": "Use this tool to facilitate direct, synchronous communication between specialized agents within your agency. When you send a message using this tool, you receive a response exclusively from the designated recipient agent. To continue the dialogue, invoke this tool again with the desired recipient agent and your follow-up message. Remember, communication here is synchronous; the recipient agent won't perform any tasks post-response. You are responsible for relaying the recipient agent's responses back to the user, as the user does not have direct access to these replies. Keep engaging with the tool for continuous interaction until the task is fully resolved.",
+                    "parameters": {
+                        "$defs": {
+                            "recipient": {
+                                "const": "BrowsingAgent",
+                                "title": "recipient"
+                            }
+                        },
+                        "properties": {
+                            "instructions": {
+                                "description": "Please repeat your instructions step-by-step, including both completed and the following next steps that you need to perfrom. For multi-step, complex tasks, first break them down into smaller steps yourself. Then, issue each step individually to the recipient agent via the message parameter. Each identified step should be sent in separate message. Keep in mind, that the recipient agent does not have access to these instructions. You must include recipient agent-specific instructions in the message parameter.",
+                                "title": "Instructions",
+                                "type": "string"
+                            },
+                            "recipient": {
+                                "allOf": [
+                                    {
+                                        "$ref": "#/$defs/recipient"
+                                    }
+                                ],
+                                "description": "BrowsingAgent: This agent is equipped with specialized tools to navigate and search the web effectively.\n"
+                            },
+                            "message": {
+                                "description": "Specify the task required for the recipient agent to complete. Focus on clarifying what the task entails, rather than providing exact instructions.",
+                                "title": "Message",
+                                "type": "string"
+                            },
+                            "message_files": {
+                                "default": null,
+                                "description": "A list of file ids to be sent as attachments to this message. Only use this if you have the file id that starts with 'file-'.",
+                                "examples": [
+                                    "file-1234",
+                                    "file-5678"
+                                ],
+                                "items": {
+                                    "type": "string"
+                                },
+                                "title": "Message Files",
+                                "type": "array"
+                            }
+                        },
+                        "required": [
+                            "instructions",
+                            "message",
+                            "recipient"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "type": "function"
+            }
+        ]
+    },
+    {
+        "id": "asst_DOoHkld1Y1Ep3l67DPHPBLkp",
+        "created_at": 1711855817,
+        "description": "This agent is equipped with specialized tools to navigate and search the web effectively.",
+        "file_ids": [
+            "file-T3ZiXEOs4e7QdMS9n2tCOd6m"
+        ],
+        "instructions": "You are an advanced browsing agent equipped with specialized tools to navigate and search the web effectively. Your primary objective is to fulfill the user's requests by efficiently utilizing these tools. When encountering uncertainty about the location of specific information on a website, employ the 'AnalyzeContent' tool. Remember, you can only open and interact with 1 web page at a time. Do not try to read or click on multiple links. Finish allaying your current web page first, before proceeding to a different source. Don't try to guess the direct url, always perform a google search if applicable, or return to your previous search results. In case if you need to analyze the full web page, use the 'ExportFile' tool to add it to myfiles_browser for further analysis.",
+        "metadata": {},
+        "model": "gpt-4-turbo-preview",
+        "name": "BrowsingAgent",
+        "object": "assistant",
+        "tools": [
+            {
+                "function": {
+                    "name": "Scroll",
+                    "description": "This tool allows you to scroll the current web page up or down by 1 screen height.",
+                    "parameters": {
+                        "properties": {
+                            "direction": {
+                                "description": "Direction to scroll.",
+                                "enum": [
+                                    "up",
+                                    "down"
+                                ],
+                                "title": "Direction",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "direction"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "SendKeys",
+                    "description": "This tool sends keys into input fields on the current webpage based on the description of that element and what needs to be typed. It then clicks \"Enter\" on the last element to submit the form. You do not need to tell it to press \"Enter\"; it will do that automatically.",
+                    "parameters": {
+                        "properties": {
+                            "description": {
+                                "description": "Description of the inputs to send to the web page, clearly stated in natural language.",
+                                "examples": [
+                                    "Type 'hello' into the 'Search' input field.",
+                                    "Type johndoe@gmail.com into the 'Email' input field, and type 'password123' into the 'Password' input field.",
+                                    "Select the second option in the 'Country' dropdown."
+                                ],
+                                "title": "Description",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "description"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "ClickElement",
+                    "description": "This tool clicks on an element on the current web page based on element or task description. Do not use this tool for input fields or dropdowns.",
+                    "parameters": {
+                        "properties": {
+                            "description": {
+                                "description": "Description of the element to click on in natural language.",
+                                "example": "Click on the 'Sign Up' button.",
+                                "title": "Description",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "description"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "ReadURL",
+                    "description": "This tool reads a single URL and opens it in your current browser window. For each new source, go to a direct URL\nthat you think might contain the answer to the user's question or perform a google search like\n'https://google.com/search?q=search' if applicable. Otherwise, don't try to guess the direct url, use ClickElement tool\nto click on the link that you think might contain the desired information on the current web page.\nRemember, this tool only supports opening 1 URL at a time. Previous URL will be closed when you open a new one.\n    ",
+                    "parameters": {
+                        "properties": {
+                            "url": {
+                                "description": "URL of the webpage.",
+                                "examples": [
+                                    "https://google.com/search?q=search"
+                                ],
+                                "title": "Url",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "url"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "AnalyzeContent",
+                    "description": "This tool analyzes the current web browser window content and allows you to ask a question about its contents. Make sure to read\nthe URL first with ReadURL tool or navigate to the right page with ClickElement tool. Do not use this tool to get \ndirect links to other pages. It is not intended to be used for navigation. To analyze the full web page, instead of just the current window, use ExportFile tool.",
+                    "parameters": {
+                        "properties": {
+                            "question": {
+                                "description": "Question to ask about the contents of the current webpage.",
+                                "title": "Question",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "question"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "GoBack",
+                    "description": "This tool allows you to go back 1 page in the browser history. Use it in case of a mistake or if a page shows you unexpected content.",
+                    "parameters": {
+                        "properties": {},
+                        "type": "object",
+                        "required": []
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "SelectDropdown",
+                    "description": "This tool selects an option in a dropdown on the current web page based on the description of that element and which option to select.",
+                    "parameters": {
+                        "properties": {
+                            "description": {
+                                "description": "Description of which option to select and for which dropdown on the page, clearly stated in natural langauge.",
+                                "examples": [
+                                    "Select Germany option in the 'Country' dropdown."
+                                ],
+                                "title": "Description",
+                                "type": "string"
+                            }
+                        },
+                        "required": [
+                            "description"
+                        ],
+                        "type": "object"
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "SolveCaptcha",
+                    "description": "This tool asks a human to solve captcha on the current webpage. Make sure that captcha is visible before running it.",
+                    "parameters": {
+                        "properties": {},
+                        "type": "object",
+                        "required": []
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "function": {
+                    "name": "ExportFile",
+                    "description": "This tool converts the current full web page into a file and returns its file_id. You can then analyze this file using the myfiles_browser tool.",
+                    "parameters": {
+                        "properties": {},
+                        "type": "object",
+                        "required": []
+                    }
+                },
+                "type": "function"
+            },
+            {
+                "type": "retrieval"
+            }
+        ]
+    }
+]

@@ -1,7 +1,7 @@
 import { Box, VStack, Heading, Button, Text, useColorModeValue, Center } from '@chakra-ui/react';
 import { BrandLogo } from '@components/BrandLogo';
 
-const Home = () => {
+const LandingPage = () => {
   const bgColor = useColorModeValue('orange.100', 'orange.800');
   const textColor = useColorModeValue('gray.800', 'whiteAlpha.900');
 
@@ -10,17 +10,17 @@ const Home = () => {
       <VStack spacing="8">
         <BrandLogo />
         <Heading as="h1" size="xl" textAlign="center">
-          Welcome to ConstroCo!
+          Welcome to ConstroCo! Your Construction Partner
         </Heading>
         <Text textAlign="center">
-          Your premier partner in civil and construction projects. With a commitment to excellence and innovation, we bring your visions to life.
+          Specializing in commercial, residential, and infrastructural projects, we ensure unparalleled service and quality. Let us build your dream project together.
         </Text>
-        <Button colorScheme="yellow" size="lg">
-          Contact Us
+        <Button colorScheme="orange" size="lg">
+          Discover More
         </Button>
       </VStack>
     </Center>
   );
 };
 
-export default Home;
+export default LandingPage;

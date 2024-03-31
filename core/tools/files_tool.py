@@ -1,7 +1,7 @@
 import os
 from .base import Tool, ToolResult
 from ..utils.llm import make_llm_api_call
-from ..utils.file_utils import find_files, EXCLUDED_FILES, EXCLUDED_EXT, _should_exclude
+from ..utils.file_utils import find_files, EXCLUDED_FILES, EXCLUDED_DIRS, EXCLUDED_EXT, _should_exclude
 import json
 
 
@@ -162,32 +162,39 @@ class FilesTool(Tool):
         else:
             return self.fail_response("File does not exist")
 
-    def read_directory_contents(self, path: str) -> ToolResult:
+    def read_directory_contents(self, path: str, depth: int = 3) -> ToolResult:
         """
-        List all files and directories at the given path, including their contents, excluding certain files and directories as specified in file_utils.py.
+        List all files and directories at the given path, including their contents, while excluding certain files and directories as specified in file_utils.py, up to a specified depth.
         """
         if not os.path.exists(self.base_path):
             return self.fail_response("Base path does not exist")
         effective_path = self._get_effective_path(path)
         if not os.path.exists(effective_path) or not os.path.isdir(effective_path):
             return self.fail_response("Directory does not exist or is not a directory")
+
         try:
             directory_contents = {}
             for root, dirs, files in os.walk(effective_path):
-                # Apply exclusions for directories
-                dirs[:] = [d for d in dirs if not _should_exclude(self.base_path, os.path.join(root, d))]
-                # Apply exclusions for files
-                files = [f for f in files if not _should_exclude(self.base_path, os.path.join(root, f)) and f not in EXCLUDED_FILES and not any(f.endswith(ext) for ext in EXCLUDED_EXT)]
-                # Append relative paths of files and directories to contents and read file contents
-                for file in files:
-                    file_path = os.path.join(root, file)
-                    relative_file_path = os.path.relpath(file_path, effective_path)
-                    try:
-                        with open(file_path, 'r', encoding='utf-8') as file_content:
-                            directory_contents[relative_file_path] = file_content.read()
-                    except UnicodeDecodeError:
-                        # Skip files that cannot be decoded with UTF-8
-                        continue
+                # Calculate current depth
+                current_depth = os.path.relpath(root, effective_path).count(os.sep)
+                if current_depth > depth:
+                    dirs[:] = []  # Don't go any deeper
+                else:
+                    # Apply exclusions for directories
+                    dirs[:] = [d for d in dirs if d not in EXCLUDED_DIRS and not _should_exclude(self.base_path, os.path.join(root, d))]
+                    # Apply exclusions for files
+                    files = [f for f in files if f not in EXCLUDED_FILES and not any(f.endswith(ext) for ext in EXCLUDED_EXT) and not _should_exclude(self.base_path, os.path.join(root, f))]
+                    # Append relative paths of files and directories to contents and read file contents
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        relative_file_path = os.path.relpath(file_path, effective_path)
+                        if not _should_exclude(self.base_path, file_path):
+                            try:
+                                with open(file_path, 'r', encoding='utf-8') as file_content:
+                                    directory_contents[relative_file_path] = file_content.read()
+                            except UnicodeDecodeError:
+                                # Skip files that cannot be decoded with UTF-8
+                                continue
             return self.success_response({"contents": directory_contents})
         except Exception as e:
             return ToolResult(success=False, output=str(e), exit_code=1)
@@ -358,49 +365,50 @@ if __name__ == "__main__":
     # Initialize the FilesTool instance
     files_tool_instance = FilesTool()
 
-    # Step 1: Example usage of creating a new file
-    new_file_path = "examples/new_sample.txt"
-    create_file_result = files_tool_instance.create_file(new_file_path)
-    print(f"Creating new file '{new_file_path}': {create_file_result.output}")
-    input("Press ENTER to continue...")
+    # # Step 1: Example usage of creating a new file
+    # new_file_path = "examples/new_sample.txt"
+    # create_file_result = files_tool_instance.create_file(new_file_path)
+    # print(f"Creating new file '{new_file_path}': {create_file_result.output}")
+    # input("Press ENTER to continue...")
 
-    # Step 2: Example usage of moving the created file
-    moved_file_path = "examples/moved_sample.txt"
-    move_file_result = files_tool_instance.move_file(new_file_path, moved_file_path)
-    print(f"Moving file from '{new_file_path}' to '{moved_file_path}': {move_file_result.output}")
-    input("Press ENTER to continue...")
+    # # Step 2: Example usage of moving the created file
+    # moved_file_path = "examples/moved_sample.txt"
+    # move_file_result = files_tool_instance.move_file(new_file_path, moved_file_path)
+    # print(f"Moving file from '{new_file_path}' to '{moved_file_path}': {move_file_result.output}")
+    # input("Press ENTER to continue...")
 
-    # Step 3: Example usage of editing file contents
-    edit_instructions = "Add a function to return the sum of two numbers."
-    edit_file_result = files_tool_instance.edit_file_contents(moved_file_path, edit_instructions)
-    print(f"Editing file '{moved_file_path}' with instructions '{edit_instructions}': {edit_file_result.output}")
-    input("Press ENTER to continue...")
+    # # Step 3: Example usage of editing file contents
+    # edit_instructions = "Add a function to return the sum of two numbers."
+    # edit_file_result = files_tool_instance.edit_file_contents(moved_file_path, edit_instructions)
+    # print(f"Editing file '{moved_file_path}' with instructions '{edit_instructions}': {edit_file_result.output}")
+    # input("Press ENTER to continue...")
 
-    # Step 4: Example usage of renaming the edited file
-    renamed_file_path = "examples/renamed_sample.txt"
-    rename_file_result = files_tool_instance.rename_file(moved_file_path, renamed_file_path)
-    print(f"Renaming file from '{moved_file_path}' to '{renamed_file_path}': {rename_file_result.output}")
-    input("Press ENTER to continue...")
+    # # Step 4: Example usage of renaming the edited file
+    # renamed_file_path = "examples/renamed_sample.txt"
+    # rename_file_result = files_tool_instance.rename_file(moved_file_path, renamed_file_path)
+    # print(f"Renaming file from '{moved_file_path}' to '{renamed_file_path}': {rename_file_result.output}")
+    # input("Press ENTER to continue...")
 
-    # Step 5: Example usage of getting the file tree
-    file_tree_path = "examples"
-    file_tree_result = files_tool_instance.get_file_tree(file_tree_path)
-    print(f"File tree of '{file_tree_path}': {file_tree_result.output}")
-    input("Press ENTER to continue...")
+    # # Step 5: Example usage of getting the file tree
+    # file_tree_path = "examples"
+    # file_tree_result = files_tool_instance.get_file_tree(file_tree_path)
+    # print(f"File tree of '{file_tree_path}': {file_tree_result.output}")
+    # input("Press ENTER to continue...")
 
-    # Step 6: Example usage of reading file contents
-    read_file_result = files_tool_instance.read_file_contents(renamed_file_path)
-    print(f"Contents of file '{renamed_file_path}': {read_file_result.output}")
-    input("Press ENTER to continue...")
+    # # Step 6: Example usage of reading file contents
+    # read_file_result = files_tool_instance.read_file_contents(renamed_file_path)
+    # print(f"Contents of file '{renamed_file_path}': {read_file_result.output}")
+    # input("Press ENTER to continue...")
 
     # Step 7: Example usage of reading directory contents
-    list_directory_path = "examples"
+    list_directory_path = ""
     list_directory_result = files_tool_instance.read_directory_contents(list_directory_path)
     print(f"Contents of directory '{list_directory_path}': {list_directory_result.output}")
     input("Press ENTER to continue...")
-    # Step 8: Example usage of deleting the renamed file
-    delete_file_result = files_tool_instance.delete_file(renamed_file_path)
-    print(f"Deleting file '{renamed_file_path}': {delete_file_result.output}")
-    input("Press ENTER to continue...")
+    # # Step 8: Example usage of deleting the renamed file
+    # delete_file_result = files_tool_instance.delete_file(renamed_file_path)
+    # print(f"Deleting file '{renamed_file_path}': {delete_file_result.output}")
+    # input("Press ENTER to continue...")
+
 
 

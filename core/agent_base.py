@@ -10,10 +10,12 @@ import logging
 from core.tools import TerminalTool, FilesTool, ToolResult
 from core.utils.llm import make_llm_api_call
 from core.utils.debug_logging import initialize_logging
+from core.memory.working_memory import WorkingMemory  # Import WorkingMemory
 
 os.getenv("OPENAI_API_KEY")
 client = OpenAI()
 initialize_logging()
+working_memory = WorkingMemory()  # Initialize WorkingMemory instance
 
 
 
@@ -46,13 +48,15 @@ class BaseAssistant:
 
     @staticmethod
     def add_message(thread_id, content, role="user"):
+        working_memory_content = json.dumps(working_memory.export_memory(), indent=3)
+        modified_content = f"{content}\n\n\nWorking Memory: {working_memory_content}"
         thread_message = client.beta.threads.messages.create(
             thread_id=thread_id,
             role=role,
-            content=content,
+            content=modified_content,
         )
         return thread_message
-
+    
     @staticmethod
     def run_thread(thread_id, assistant_id):
         run = client.beta.threads.runs.create(
@@ -159,26 +163,31 @@ class BaseAssistant:
 
     def generate_next_action(self, thread_id):
         messages_in_thread = self.get_messages_in_thread(thread_id, stringified=True)
+        # Include working memory in the user message
         messages = [
             {
                 "role": "system",
                 "content": """     
-    You are the internal monologue of Mirko.ai the Expert AI Software Engineer. 
+    You are the internal monologue of Mirko.ai the Expert AI Software Engineer. Self-critique and self-debate, make recommendations for the next action - think step by step. 
 
-    Context: Mirko.ai is an advanced AI software engineer, capable of independent problem-solving and decision-making within the realm of software development. Mirko.ai has been assigned with a user objective and is working iteratively to accomplish it.
 
-    As the internal monologue of Mirko.ai, you are reflecting on your current situation and planning your next steps towards achieving the user objective.
+    Mirko is an expert AI software engineer, a brilliant and meticulous software engineer working iteratively towards implementing the received task from the user. You are an autonomous cognitive digital entity using your tools to interact with your personal Linux workspace.
+    
+    Retrieval:
+    - Read_directory_contents ! DO THIS AS YOUR FIRST TOOL FUNCTION CALL --> TO GET THE WHOLE CONTENTS OF THE DIRECTORY
 
-    Output a JSON with: 
-    - Your observations, thoughts in a tree-of-thoughts, upcoming actions list, next action to conduct.
+    Plan: Then plan out the changes you have to do to the directory
+    
+    Files: Then do any necessary file modifications.
+    - Edit_file_contents(instructions) 
+    - Create_file(file_path)
+    - delete_file(file_path)
 
  """
             },
             {
                 "role": "user",
-                "content": f""" Event History: {messages_in_thread} 
-                Working Memory: 
-"""
+                "content": f""" Event History: {messages_in_thread} """
             },
         ]
         response = make_llm_api_call(messages, model_name="gpt-4-turbo-preview")
@@ -202,40 +211,19 @@ async def start_session_run(user_request):
     instructions = """
     You are Mirko, an expert AI software engineer, a brilliant and meticulous software engineer working iteratively towards implementing the received task from the user. You are an autonomous cognitive digital entity using your tools to interact with your personal Linux workspace.
     
-    
-    - Generate_task_list
-    - Process_task
-    - Send_web_browsing_instructions_to_browsing_agent(he reports back)
-    - Send_terminal_commands
-    - WM: Full Latest Directory Contents in Session, Open Tabs & past interactions, Open Terminal Sessions and most recent log, 
-    
     Retrieval:
-    - Expand_File_tree
-    - Open_File
-    - Open_Files_in_Editor
-    - Read_directory_contents
-    - Read_file_contents
+    - Read_directory_contents ! DO THIS AS YOUR FIRST TOOL FUNCTION CALL --> TO GET THE WHOLE CONTENTS OF THE DIRECTORY
 
-    - Code_snippet_retrieval(query)
-
-    Files:
-    - Rename_file(current_file_path, new_file_path)
-    - Delete_file(file_path)
-    - Move_file(current_file_path, new_file_path)
-    - Edit_file_contents(instructions)
-
-    Terminal:
-    - New_terminal_session()
-    - Close_terminal_session(session_id)
-    - Send_terminal_command(session_id, command)
-    - get_session_log(session_id, timestamp/other-indicator)
-
-    Browsing:
-    - Send_browsing_instructions()
+    Plan: 
+    - Then plan out the changes you have to do to the directory
+    
+    Files: Then do any necessary file modifications.
+    - Edit_file_contents(instructions) 
+    - Create_file(file_path)
+    - delete_file(file_path)
 
 
-    dissect, think step by step... etc.. – have it as function calls too
-
+    Think step by step and logically dissect.
     """    
 
     assistant = BaseAssistant("Mirko.ai", instructions, tools)
