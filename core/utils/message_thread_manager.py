@@ -12,8 +12,9 @@ class MessageThreadManager:
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS threads
                                (id INTEGER PRIMARY KEY)''')  
         self.cursor.execute('''CREATE TABLE IF NOT EXISTS messages
-                               (id INTEGER PRIMARY KEY, thread_id INTEGER, role TEXT, content TEXT,
-                               FOREIGN KEY(thread_id) REFERENCES threads(id))''')
+                               (index INTEGER, thread_id INTEGER, role TEXT, content TEXT,
+                               FOREIGN KEY(thread_id) REFERENCES threads(id),
+                               UNIQUE(index, thread_id))''')
         self.conn.commit()
 
     def create_thread(self) -> int:
@@ -24,35 +25,30 @@ class MessageThreadManager:
     def add_message(self, thread_id: int, role: str, content: str) -> int:
         if role not in ["user", "assistant"]:
             raise ValueError("Role must be either 'user' or 'assistant'")
-        self.cursor.execute("INSERT INTO messages (thread_id, role, content) VALUES (?, ?, ?)",
-                            (thread_id, role, content))
+        self.cursor.execute("SELECT MAX(index) FROM messages WHERE thread_id=?", (thread_id,))
+        max_index = self.cursor.fetchone()[0]
+        next_index = (max_index if max_index is not None else -1) + 1
+        self.cursor.execute("INSERT INTO messages (index, thread_id, role, content) VALUES (?, ?, ?, ?)",
+                            (next_index, thread_id, role, content))
         self.conn.commit()
-        return self.cursor.lastrowid
+        return next_index
 
-    def get_message(self, message_id: int) -> Dict[str, Any]:
-        self.cursor.execute("SELECT role, content FROM messages WHERE id=?", (message_id,))
+    def get_message(self, thread_id: int, message_index: int) -> Optional[Dict[str, Any]]:
+        self.cursor.execute("SELECT role, content FROM messages WHERE thread_id=? AND index=?", (thread_id, message_index))
         message = self.cursor.fetchone()
         return {"role": message[0], "content": message[1]} if message else None
 
-    def modify_message(self, message_id: int, content: str):
-        self.cursor.execute("UPDATE messages SET content=? WHERE id=?", (content, message_id))
+    def modify_message(self, thread_id: int, message_index: int, content: str):
+        self.cursor.execute("UPDATE messages SET content=? WHERE thread_id=? AND index=?", (content, thread_id, message_index))
         self.conn.commit()
 
-    def remove_message(self, message_id: int):
-        self.cursor.execute("DELETE FROM messages WHERE id=?", (message_id,))
+    def remove_message(self, thread_id: int, message_index: int):
+        self.cursor.execute("DELETE FROM messages WHERE thread_id=? AND index=?", (thread_id, message_index))
         self.conn.commit()
 
     def list_messages(self, thread_id: int) -> List[Dict[str, Any]]:
-        self.cursor.execute("SELECT id, thread_id, role, content FROM messages WHERE thread_id=?", (thread_id,))
-        messages = []
-        for row in self.cursor.fetchall():
-            message = {
-                "role": row[2],
-                "content": row[3]
-            }
-            if row[2] == "user" or row[2] == "assistant":
-                messages.append(message)
-        return messages
+        self.cursor.execute("SELECT index, role, content FROM messages WHERE thread_id=? ORDER BY index ASC", (thread_id,))
+        return [{"index": row[0], "role": row[1], "content": row[2]} for row in self.cursor.fetchall()]
 
     def run_thread(self, thread_id: int, system_message: str, messages: Any, model_name: Any, json_mode: bool = False, temperature: int = 0, max_tokens: Optional[Any] = None) -> Any:
         from core.utils.llm import make_llm_api_call
