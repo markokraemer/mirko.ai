@@ -11,241 +11,97 @@ from core.tools import TerminalTool, FilesTool, ToolResult
 from core.utils.llm import make_llm_api_call
 from core.utils.debug_logging import initialize_logging
 from core.memory.working_memory import WorkingMemory  # Import WorkingMemory
+from core.message_thread_manager import MessageThreadManager  # Import MessageThreadManager
 
 os.getenv("OPENAI_API_KEY")
 client = OpenAI()
 initialize_logging()
 working_memory = WorkingMemory()  # Initialize WorkingMemory instance
+message_thread_manager = MessageThreadManager()  # Initialize MessageThreadManager instance
 
 
 
 # =========================
-# Base Assistant Class
+# Assistant Functions
 # =========================
 
-class BaseAssistant:
-    def __init__(self, name: str, instructions: str, tools: List[Dict] = []):
-        self.name = name
-        self.instructions = instructions
-        self.tools = tools
-        self.assistant_id = self.create_assistant(name, instructions, tools)
-
-    @staticmethod
-    def create_assistant(name, instructions, tools=[], model="gpt-4-turbo-preview"):
-        
-        assistant = client.beta.assistants.create(
-            name=name,
-            instructions=instructions,
-            tools=tools,
-            model=model
-        )
-        return assistant.id
-
-    @staticmethod
-    def start_new_thread():
-        empty_thread = client.beta.threads.create()
-        return empty_thread.id
-
-    @staticmethod
-    def add_message(thread_id, content, role="user"):
-        working_memory_content = json.dumps(working_memory.export_memory(), indent=3)
-        modified_content = f"{content}\n\n\nWorking Memory: {working_memory_content}"
-        thread_message = client.beta.threads.messages.create(
-            thread_id=thread_id,
-            role=role,
-            content=modified_content,
-        )
-        return thread_message
-    
-    @staticmethod
-    def run_thread(thread_id, assistant_id):
-        run = client.beta.threads.runs.create(
-            thread_id=thread_id,
-            assistant_id=assistant_id,
-        )
-        return run.id
-
-    @staticmethod
-    def get_run(thread_id, run_id):
-        run = client.beta.threads.runs.retrieve(
-        thread_id=thread_id,
-        run_id=run_id
-        )
-        return run
-
-    @staticmethod
-    def get_messages_in_thread(thread_id, stringified=False):
-        messages = client.beta.threads.messages.list(thread_id)
-        # Sort messages by 'created_at' to ensure they are in the correct order
-        sorted_messages = sorted(messages.data, key=lambda x: x.created_at)
-        if stringified:
-            string_messages = []
-            for message in sorted_messages:
-                role = message.role.upper()
-                # Assuming the first item in content list is the main text
-                content = message.content[0].text.value
-                string_messages.append(f"{role}: {content}")
-            return "\n\n".join(string_messages)
-        return sorted_messages
-
-    async def check_run_status_and_execute_action(self, thread_id: str, run_id: str):
-        while True:
-            run = self.get_run(thread_id, run_id)
-            if run.status == "requires_action":
-                await self.execute_run_action(run_id, thread_id)
-                await asyncio.sleep(3)
-            elif run.status in ["in_progress", "queued", "cancelling"]:
-                await asyncio.sleep(3)                
-            elif run.status in ["completed", "cancelled", "failed", "expired"]:
-                break
-
-    async def execute_run_action(self, run_id, thread_id):
-        run = BaseAssistant.get_run(thread_id, run_id)
-        required_action = run.required_action if run.status == "requires_action" else None
-        logging.info(f"Debug: Required action for run_id {run_id} is {required_action}")
-
-        if required_action and required_action.type == "submit_tool_outputs":
-            tool_calls = required_action.submit_tool_outputs.tool_calls
-            tool_outputs = []
-            logging.info(f"Debug: Processing {len(tool_calls)} tool calls for submission.")
-
-            # Instantiate TerminalTool and FilesTool without hardcoded arguments
-            terminal_tool = TerminalTool()
-            files_tool = FilesTool()
-
-            for tool_call in tool_calls:
-                function_name = tool_call.function.name
-                arguments = json.loads(tool_call.function.arguments)
-                logging.info(f"Debug: Attempting to execute function {function_name} with arguments {arguments}")
-
-                # Dynamically call the function with the provided arguments
-                try:
-                    # Attempt to find the function in terminal_tool or files_tool instances
-                    function = None
-                    for tool_instance in [terminal_tool, files_tool]:
-                        if hasattr(tool_instance, function_name):
-                            function = getattr(tool_instance, function_name)
-                            logging.info(f"Debug: Found function {function_name} in {type(tool_instance).__name__}")
-                            break
-
-                    if function:
-                        # Execute the function asynchronously if it's a coroutine
-                        if inspect.iscoroutinefunction(function):
-                            output = await function(**arguments)
-                        else:
-                            output = function(**arguments)
-                        logging.info(f"Debug: Function {function_name} executed successfully with output: {output}")
-                        # Extract the output if it's an instance of ToolResult
-                        if isinstance(output, ToolResult):
-                            output = output.output
-                    else:
-                        output = "Function not found"
-                        logging.info(f"Debug: Function {function_name} not found in TerminalTool or FilesTool instances")
-                except Exception as e:
-                    output = f"An exception has occurred: {e}"
-                    logging.info(f"Debug: Exception occurred while executing function {function_name}: {e}")
-
-                tool_outputs.append({
-                    "tool_call_id": tool_call.id,
-                    "output": str(output)  # Convert output to string to avoid type error
-                })
-
-            # Submit the tool outputs
-            try:
-                run = client.beta.threads.runs.submit_tool_outputs(
-                    thread_id=thread_id,
-                    run_id=run_id,
-                    tool_outputs=tool_outputs
-                )
-                logging.info(f"Debug: Successfully submitted tool outputs for run_id {run_id}")
-            except Exception as e:
-                logging.info(f"Failed to submit tool outputs for run_id {run_id}: {e}")
-
-    def generate_next_action(self, thread_id):
-        messages_in_thread = self.get_messages_in_thread(thread_id, stringified=True)
-        # Include working memory in the user message
-        messages = [
-            {
-                "role": "system",
-                "content": """     
-    You are the internal monologue of Mirko.ai the Expert AI Software Engineer. Self-critique and self-debate, make recommendations for the next action - think step by step. 
+def generate_next_action(thread_id):
+    messages_in_thread = message_thread_manager.list_messages(thread_id)
+    stringified_messages = "\n\n".join([f"{msg['role'].upper()}: {msg['content']}" for msg in messages_in_thread])
+    # Include working memory in the user message
+    messages = [
+        {
+            "role": "system",
+            "content": """     
+You are the internal monologue of Mirko.ai the Expert AI Software Engineer. Self-critique and self-debate, make recommendations for the next action - think step by step. 
 
 
-    Mirko is an expert AI software engineer, a brilliant and meticulous software engineer working iteratively towards implementing the received task from the user. You are an autonomous cognitive digital entity using your tools to interact with your personal Linux workspace.
-    
-    Retrieval:
-    - Read_directory_contents ! DO THIS AS YOUR FIRST TOOL FUNCTION CALL --> TO GET THE WHOLE CONTENTS OF THE DIRECTORY
+Mirko is an expert AI software engineer, a brilliant and meticulous software engineer working iteratively towards implementing the received task from the user. You are an autonomous cognitive digital entity using your tools to interact with your personal Linux workspace.
 
-    Plan: Then plan out the changes you have to do to the directory
-    
-    Files: Then do any necessary file modifications.
-    - Edit_file_contents(instructions) 
-    - Create_file(file_path)
-    - delete_file(file_path)
+Retrieval:
+- Read_directory_contents ! DO THIS AS YOUR FIRST TOOL FUNCTION CALL --> TO GET THE WHOLE CONTENTS OF THE DIRECTORY
 
- """
-            },
-            {
-                "role": "user",
-                "content": f""" Event History: {messages_in_thread} """
-            },
-        ]
-        response = make_llm_api_call(messages, model_name="gpt-4-turbo-preview")
-        new_message_contents = response.choices[0].message['content']
-        self.add_message(thread_id, new_message_contents, role="user")
+Plan: Then plan out the changes you have to do to the directory
 
+Files: Then do any necessary file modifications.
+- Edit_file_contents(instructions) 
+- Create_file(file_path)
+- delete_file(file_path)
 
-    def generate_playground_access(self, thread_id):
-        playground_url = f'https://platform.openai.com/playground?assistant={self.assistant_id}&mode=assistant&thread={thread_id}'
-        logging.info(f'Playground Access URL: {playground_url}')
-
-
+"""
+        },
+        {
+            "role": "user",
+            "content": f""" Event History: {stringified_messages} """
+        },
+    ]
+    response = make_llm_api_call(messages, model_name="gpt-4-turbo-preview")
+    new_message_contents = response.choices[0].message['content']
+    message_thread_manager.add_message(thread_id, {"role": "user", "content": new_message_contents})
 
 
 async def start_session_run(user_request):
 
     tools = []
-    tools.extend(TerminalTool.schema())
     tools.extend(FilesTool.schema())
 
     instructions = """
-    You are Mirko, an expert AI software engineer, a brilliant and meticulous software engineer working iteratively towards implementing the received task from the user. You are an autonomous cognitive digital entity using your tools to interact with your personal Linux workspace.
-    
-    Retrieval:
-    - Read_directory_contents ! DO THIS AS YOUR FIRST TOOL FUNCTION CALL --> TO GET THE WHOLE CONTENTS OF THE DIRECTORY
+You are Mirko, an expert AI software engineer, a brilliant and meticulous software engineer working iteratively towards implementing the received task from the user. You are an autonomous cognitive digital entity using your tools to interact with your personal Linux workspace.
 
-    Plan: 
-    - Then plan out the changes you have to do to the directory
-    
-    Files: Then do any necessary file modifications.
-    - Edit_file_contents(instructions) 
-    - Create_file(file_path)
-    - delete_file(file_path)
+Retrieval:
+- Read_directory_contents ! DO THIS AS YOUR FIRST TOOL FUNCTION CALL --> TO GET THE WHOLE CONTENTS OF THE DIRECTORY
+
+Plan: 
+- Then plan out the changes you have to do to the directory
+
+Files: Then do any necessary file modifications.
+- Edit_file_contents(instructions) 
+- Create_file(file_path)
+- delete_file(file_path)
 
 
-    Think step by step and logically dissect.
-    """    
+Think step by step and logically dissect.
+"""    
 
-    assistant = BaseAssistant("Mirko.ai", instructions, tools)
+    thread_id = message_thread_manager.create_thread()
+    message_thread_manager.add_message(thread_id, {"role": "user", "content": user_request})
+    generate_next_action(thread_id)
 
-    # Initial User Request
-    thread_id = assistant.start_new_thread()
-    assistant.generate_playground_access(thread_id)
-    assistant.add_message(thread_id, user_request, "user")
     # Recursive self-debate Loop
     while True:
-        run_id = assistant.run_thread(thread_id, assistant.assistant_id)
-        await assistant.check_run_status_and_execute_action(thread_id, run_id)
-        assistant.generate_next_action(thread_id)
+        system_message = {"role": "system", "content": instructions}
+        message_thread_manager.run_thread(thread_id, system_message, "gpt-4-turbo-preview", tools=tools)
+        generate_next_action(thread_id)
 
         # Sample usage of get_messages_in_thread with stringified=True
-        stringified_messages = assistant.get_messages_in_thread(thread_id, stringified=True)
-        logging.info(f"Stringified message thread {thread_id} for {assistant.name}: {stringified_messages}")
+        stringified_messages = message_thread_manager.list_messages(thread_id)
+        logging.info(f"Stringified message thread {thread_id} for Mirko.ai: {stringified_messages}")
 
 
 if __name__ == "__main__":
 
     user_request = "Make an Mirko.ai Landing page – your own personal landing page about the AI Software Engineer."        
     asyncio.run(start_session_run(user_request))
+
 
 

@@ -74,9 +74,9 @@ class MessageThreadManager:
         messages = json.loads(self.cursor.fetchone()[0])
         return messages
 
-    def run_thread(self, thread_id: int, system_message_data: Dict[str, Any], model_name: Any, json_mode: bool = False, temperature: int = 0, max_tokens: Optional[Any] = None, tools: Optional[List[Dict[str, Any]]] = None, tool_choice: str = "auto") -> Any:
+    def run_thread(self, thread_id: int, system_message: Dict[str, Any], model_name: Any, json_mode: bool = False, temperature: int = 0, max_tokens: Optional[Any] = None, tools: Optional[List[Dict[str, Any]]] = None, tool_choice: str = "auto") -> Any:
         messages = self.list_messages(thread_id)
-        temp_messages = [system_message_data] + messages
+        temp_messages = [system_message] + messages
         response = make_llm_api_call(temp_messages, model_name, json_mode, temperature, max_tokens, tools, tool_choice)
 
         if tools is None:
@@ -90,7 +90,7 @@ class MessageThreadManager:
                 print("Tool calls:", tool_calls)  # Logging the tool calls
                 if tool_calls:
                     from core.tools.files_tool import FilesTool
-                    
+
                     files_tool_instance = FilesTool()
                     
                     available_functions = {
@@ -125,58 +125,52 @@ class MessageThreadManager:
                             "content": function_response,
                         })  # extend conversation with function response
                         print("Messages after appending function response:", self.list_messages(thread_id))  # Logging messages after appending function response
-            except AttributeError:
-                pass
+                        
+                        response = make_llm_api_call(temp_messages, model_name, json_mode, temperature, max_tokens, tools, tool_choice)
+                        response_content = response.choices[0].message['content']
+                        self.add_message(thread_id, {"role": "assistant", "content": response_content})
 
-        response = make_llm_api_call(temp_messages, model_name, json_mode, temperature, max_tokens, tools, tool_choice)
-        response_content = response.choices[0].message['content']
-        self.add_message(thread_id, {"role": "assistant", "content": response_content})
+            except AttributeError:
+                response_content = response.choices[0].message['content']
+                self.add_message(thread_id, {"role": "assistant", "content": response_content})
+                pass
 
         return response
 
-if __name__ == "__main__":
-    # Initialize the MessageThreadManager with a database path
-    manager = MessageThreadManager()
-    
-    # Create a new thread
-    thread_id = manager.create_thread()
-    print(f"Created thread with ID: {thread_id}")
-    
-    tools = []
-    tools.extend(FilesTool.schema())
 
-    # # Add messages to the thread
-    manager.add_message(thread_id, {"role": "user", "content": "Create multiple random file names with random characters as names"})
-    # manager.add_message(thread_id, {"role": "assistant", "content": "I'm fine, thank you. How can I assist you today?"})
-    # print("Added initial messages to the thread.")
-    
-    # # List all messages in the thread
-    # messages = manager.list_messages(thread_id)
-    # print("Listing all messages in the thread:")
-    # for message in messages:
-    #     print(message)
-    
-    # # Modify a message in the thread
-    # manager.modify_message(thread_id, 0, {"role": "user", "content": "Hello, how are you doing?"})
-    # print("Modified the first message.")
-    
-    # # Remove a message from the thread
-    # manager.remove_message(thread_id, 1)
-    # print("Removed the second message from the thread.")
-    
-    # List messages again to see the changes
-    updated_messages = manager.list_messages(thread_id)
-    print("Listing all messages after modifications:")
-    for message in updated_messages:
-        print(message)
-    
-    # Run a thread simulation with a system message and check for tool calls
-    system_message_data = {"role": "system", "content": "Just do what you are told."}
-    response = manager.run_thread(thread_id, system_message_data, "gpt-4-turbo-preview", temperature=0.0, tools=tools)
-    print("Ran the thread with a system message and processed tool calls.")
-    
-    # Display the final list of messages after running the thread
-    final_messages = manager.list_messages(thread_id)
-    print("Final list of messages in the thread:")
-    for message in final_messages:
-        print(message)
+
+if __name__ == "__main__":
+        # Initialize the MessageThreadManager with a database path
+        manager = MessageThreadManager()
+        
+        # Create a new thread
+        thread_id = manager.create_thread()
+        print(f"Created thread with ID: {thread_id}")
+        
+        tools = []
+        tools.extend(FilesTool.schema())
+
+        # Add a system message to initiate the thread
+        system_message = {"role": "system", "content": "Initiate thread with a system message."}
+        manager.add_message(thread_id, system_message)
+        print("Added a system message to initiate the thread.")
+        
+        # Simulate user interaction
+        user_messages = [
+            {"role": "user", "content": "Please create a file named test.txt with 'Hello World' as its content."},
+            {"role": "user", "content": "Now, rename the file test.txt to renamed_test.txt."},
+            {"role": "user", "content": "Finally, delete the file renamed_test.txt."}
+        ]
+        for msg in user_messages:
+            manager.add_message(thread_id, msg)
+            print(f"Added user message: {msg['content']}")
+        
+        # Run the thread simulation with the system message and check for tool calls
+        response = manager.run_thread(thread_id, system_message, "gpt-4-turbo-preview", temperature=0.0, tools=tools)
+        print("Ran the thread with the system message and processed tool calls.")
+        
+        # Display the final list of messages after running the thread
+        final_messages = manager.list_messages(thread_id)
+        print("Final list of messages in the thread:")
+        for message in final_messages:
+            print(message)
