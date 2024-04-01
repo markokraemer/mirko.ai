@@ -245,7 +245,7 @@ async def start_session_run(user_request):
 
 if __name__ == "__main__":
 
-    user_request = "Build a simple Landing Page for my construction company. "        
+    user_request = "Make an Mirko.ai Landing page – your own personal landing page about the AI Software Engineer."        
     asyncio.run(start_session_run(user_request))
 
 
