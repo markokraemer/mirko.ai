@@ -4,9 +4,12 @@ import os
 import json
 import docker
 from pathlib import Path
+from enum import Enum
+from xml.dom.minidom import getDOMImplementation
 
 from abilities import file_util
 
+__XML_DOM__ = getDOMImplementation()
 
 @dataclass
 class OpsResult:
@@ -16,12 +19,52 @@ class OpsResult:
 
 
 class Ops(ABC):
+    @classmethod
     @abstractmethod
-    def schema(self) -> list[dict]:
+    def openai_schema() -> list[dict]:
         """
         Returns the JSON schema for OpenAI function calls.
         """
         pass
+
+    @classmethod
+    def anthropic_schema(cls) -> str:
+        """
+        Return Anthropic Claude tool definition XML as a string
+        https://docs.anthropic.com/claude/docs/functions-external-tools
+        """
+        doc = __XML_DOM__.createDocument(None, "tools", None)
+        for tool_dict in cls.openai_schema():
+            desc_node = doc.createElement("tool_description")
+            tool_name_node = doc.createElement("tool_name")
+            tool_name_node.appendChild(doc.createTextNode(tool_dict['function']['name']))
+            desc_node.appendChild(tool_name_node)
+
+            description_node = doc.createElement("description")
+            description_node.appendChild(doc.createTextNode(tool_dict['function']['description']))
+            desc_node.appendChild(description_node)
+
+            parameters_node = doc.createElement("parameters")
+            for param_name, param in tool_dict['function']['parameters']['properties'].items():
+                parameter_node = doc.createElement("parameter")
+
+                name_node = doc.createElement("name")
+                name_node.appendChild(doc.createTextNode(param_name))
+                parameter_node.appendChild(name_node)
+
+                type_node = doc.createElement("type")
+                type_node.appendChild(doc.createTextNode(param['type']))
+                parameter_node.appendChild(type_node)
+
+                description_node = doc.createElement("description")
+                description_node.appendChild(doc.createTextNode(param['description']))
+                parameter_node.appendChild(description_node)
+
+                parameters_node.appendChild(parameter_node)
+
+            desc_node.appendChild(parameters_node)
+            doc.documentElement.appendChild(desc_node)
+        return doc.toxml()
 
     def ok_response(self, data: dict | str) -> OpsResult:
         """
@@ -57,8 +100,8 @@ class TerminalOps(Ops):
             exit_code=result.exit_code,
         )
 
-    @staticmethod
-    def schema() -> list[dict]:
+    @classmethod
+    def openai_schema(cls) -> list[dict]:
         """
         Returns the JSON schema for OpenAI function calls.
         """
@@ -167,8 +210,8 @@ class RetrievalOps(Ops):
         else:
             return self.fail_response("File does not exist")
 
-    @staticmethod
-    def schema() -> list[dict]:
+    @classmethod
+    def openai_schema(cls) -> list[dict]:
         """
         Returns the JSON schema for OpenAI function calls.
         """

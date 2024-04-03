@@ -17,13 +17,23 @@ def assert_tool_fields(schema):
         assert tool['function']['parameters']
 
 def test_terminal_schema():
-    subject = TerminalOps.schema()
+    subject = TerminalOps.openai_schema()
     assert_tool_fields(subject)
     verify(subject)
 
 def test_retrieval_schema():
-    subject = RetrievalOps.schema()
+    subject = RetrievalOps.openai_schema()
     assert_tool_fields(subject)
+    verify(subject)
+
+## XML Schemas
+
+def test_terminal_anthropic_schema():
+    subject = TerminalOps.anthropic_schema()
+    verify(subject)
+
+def test_retrieval_anthropic_schema():
+    subject = RetrievalOps.anthropic_schema()
     verify(subject)
 
 

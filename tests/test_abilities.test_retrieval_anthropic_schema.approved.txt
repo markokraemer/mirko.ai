@@ -1,0 +1,5 @@
+<?xml version="1.0" ?><tools><tool_description><tool_name>get_file_tree</tool_name><description>
+        List path recursively with limited depth. Path is relative to current dir.
+        </description><parameters><parameter><name>path</name><type>string</type><description>Directory to list relative to current</description></parameter><parameter><name>depth</name><type>number</type><description>Depth limit, default 1</description></parameter></parameters></tool_description><tool_description><tool_name>read_file_contents</tool_name><description>
+        Show the contents of the file at path relative to current dir
+        </description><parameters><parameter><name>path</name><type>string</type><description>Path of file relative to current dir</description></parameter></parameters></tool_description></tools>

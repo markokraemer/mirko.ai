@@ -1,0 +1,3 @@
+<?xml version="1.0" ?><tools><tool_description><tool_name>send_command</tool_name><description>
+        Run command in the terminal and wait for the result
+        </description><parameters><parameter><name>command</name><type>string</type><description>The command to be executed in the terminal.</description></parameter></parameters></tool_description></tools>
