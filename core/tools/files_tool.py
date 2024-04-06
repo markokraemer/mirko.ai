@@ -96,7 +96,7 @@ class FilesTool(Tool):
             logging.info(f"File {file_path} edited successfully. Latest content updated.")
             return self.success_response(f"File {file_path} edited successfully. Latest content: {updated_content}")
         except Exception as e:
-            logging.error(f"An error occurred while editing file contents for {file_path}: {e}")
+            logging.error(f"An error occurred while editing file contents for {file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
 # <----> Basic File Ops
@@ -117,7 +117,7 @@ class FilesTool(Tool):
             logging.info(f"File {file_path} created successfully")
             return self.success_response(f"File {file_path} created successfully")
         except Exception as e:
-            logging.error(f"An error occurred while creating file at {file_path}: {e}")
+            logging.error(f"An error occurred while creating file at {file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
     def move_file(self, current_file_path: str, new_file_path: str) -> ToolResult:
@@ -135,7 +135,7 @@ class FilesTool(Tool):
             logging.info(f"File moved from {current_file_path} to {new_file_path}")
             return self.success_response(f"File renamed from {current_file_path} to {new_file_path}")
         except Exception as e:
-            logging.error(f"An error occurred while moving file from {current_file_path} to {new_file_path}: {e}")
+            logging.error(f"An error occurred while moving file from {current_file_path} to {new_file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
     def rename_file(self, old_file_path: str, new_file_path: str) -> ToolResult:
@@ -156,7 +156,7 @@ class FilesTool(Tool):
             logging.info(f"File renamed from {old_file_path} to {new_file_path}")
             return self.success_response(f"File renamed from {old_file_path} to {new_file_path}")
         except Exception as e:
-            logging.error(f"An error occurred while renaming file from {old_file_path} to {new_file_path}: {e}")
+            logging.error(f"An error occurred while renaming file from {old_file_path} to {new_file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
     def delete_file(self, file_path: str) -> ToolResult:
@@ -173,7 +173,7 @@ class FilesTool(Tool):
             logging.info(f"File {file_path} deleted successfully")
             return self.success_response(f"File {file_path} deleted successfully")
         except Exception as e:
-            logging.error(f"An error occurred while deleting file at {file_path}: {e}")
+            logging.error(f"An error occurred while deleting file at {file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
 
@@ -204,7 +204,7 @@ class FilesTool(Tool):
             logging.info(f"File tree retrieved successfully for path: {path}")
             return self.success_response({"paths": listed_paths})
         except Exception as e:
-            logging.error(f"An error occurred while getting file tree for path: {path}: {e}")
+            logging.error(f"An error occurred while getting file tree for path: {path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
     def read_file_contents(self, path: str) -> ToolResult:
@@ -273,7 +273,7 @@ class FilesTool(Tool):
             logging.info(f"Directory contents read successfully for path: {path}")
             return self.success_response({"contents": directory_contents})
         except Exception as e:
-            logging.error(f"An error occurred while reading directory contents for path: {path}: {e}")
+            logging.error(f"An error occurred while reading directory contents for path: {path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
 
@@ -488,3 +488,4 @@ if __name__ == "__main__":
     # print(f"Deleting file '{renamed_file_path}': {delete_file_result.output}")
     # input("Press ENTER to continue..."
     logging.info("FilesTool script execution completed")
+
