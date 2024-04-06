@@ -3,6 +3,7 @@ from .base import Tool, ToolResult
 from ..utils.llm import make_llm_api_call
 from ..utils.file_utils import find_files, EXCLUDED_FILES, EXCLUDED_DIRS, EXCLUDED_EXT, _should_exclude
 import json
+from ..memory.working_memory import WorkingMemory
 
 
 
@@ -11,9 +12,28 @@ def _rindex(li, value):
 
 class FilesTool(Tool):
     def __init__(self):
+        """
+        Initialize the FilesTool with a base path and a working memory instance.
+        """
         self.base_path = "/root/softgen.ai/mirko.ai/working_directory" # Hard coded for now
+        self.working_memory = WorkingMemory()        
+        self.initialize_files()
+
+    def initialize_files(self):
+        """
+        Initialize the files in the working directory by reading the directory contents.
+        """
+        if not self.working_memory.get_module("WorkspaceDirectoryContents"):
+            self.working_memory.add_or_update_module("WorkspaceDirectoryContents", [])
+        self.read_directory_contents("") # Hardcoded initialises with full latest WorkspaceDirectoryContents
 
     def _get_effective_path(self, path: str) -> str:
+        """
+        Get the effective path by handling . and ~ to avoid touching things outside base_path.
+        
+        :param path: The path to process.
+        :return: The effective path.
+        """
         # Handling . and ~ to avoid touching things outside base_path.
         path_parts = path.split(os.sep)
         if "." in path_parts:
@@ -28,7 +48,11 @@ class FilesTool(Tool):
 
     def edit_file_contents(self, file_path: str, instructions: str) -> ToolResult:
         """
-        Edit file contents based on instructions
+        Edit file contents based on instructions.
+        
+        :param file_path: Path to the file to be edited.
+        :param instructions: Instructions on how to edit the file.
+        :return: Result of the editing operation.
         """
         effective_path = self._get_effective_path(file_path)
         if not os.path.exists(effective_path):
@@ -53,7 +77,12 @@ class FilesTool(Tool):
             # Write the new content into the file
             with open(effective_path, 'w') as file:
                 file.write(new_content)
-            return self.success_response(f"File {file_path} edited successfully based on instructions")
+            
+            # Read the updated file content to include in the success response
+            with open(effective_path, 'r') as file:
+                updated_content = file.read()
+                
+            return self.success_response(f"File {file_path} edited successfully. Latest content: {updated_content}")
         except Exception as e:
             return ToolResult(success=False, output=str(e), exit_code=1)
 
@@ -164,7 +193,7 @@ class FilesTool(Tool):
 
     def read_directory_contents(self, path: str, depth: int = 3) -> ToolResult:
         """
-        List all files and directories at the given path, including their contents, while excluding certain files and directories as specified in file_utils.py, up to a specified depth.
+        List all files and directories at the given path, including their contents, while excluding certain files and directories as specified in file_utils.py, up to a specified depth. Updates the WorkspaceDirectoryContents Module in working memory with the directory contents.
         """
         if not os.path.exists(self.base_path):
             return self.fail_response("Base path does not exist")
@@ -195,6 +224,8 @@ class FilesTool(Tool):
                             except UnicodeDecodeError:
                                 # Skip files that cannot be decoded with UTF-8
                                 continue
+            # Update the WorkspaceDirectoryContents Module in working memory
+            self.working_memory.add_or_update_module("WorkspaceDirectoryContents", directory_contents)
             return self.success_response({"contents": directory_contents})
         except Exception as e:
             return ToolResult(success=False, output=str(e), exit_code=1)
@@ -203,7 +234,7 @@ class FilesTool(Tool):
     @staticmethod
     def schema() -> list[dict]:
         """
-        Returns the JSON schema for OpenAI function calls.
+        Returns the OpenAPI JSON schema for function calls.
         """
         return [
             {
@@ -265,27 +296,27 @@ class FilesTool(Tool):
                     },
                 },
             },
-            {
-                "type": "function",
-                "function": {
-                    "name": FilesTool.rename_file.__name__,
-                    "description": FilesTool.rename_file.__doc__,
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "old_file_path": {
-                                "type": "string",
-                                "description": "Old path of the file, relative to current dir",
-                            },
-                            "new_file_path": {
-                                "type": "string",
-                                "description": "New path for the file, relative to current dir",
-                            }
-                        },
-                        "required": ["old_file_path", "new_file_path"],
-                    },
-                },
-            },
+            # {
+            #     "type": "function",
+            #     "function": {
+            #         "name": FilesTool.rename_file.__name__,
+            #         "description": FilesTool.rename_file.__doc__,
+            #         "parameters": {
+            #             "type": "object",
+            #             "properties": {
+            #                 "old_file_path": {
+            #                     "type": "string",
+            #                     "description": "Old path of the file, relative to current dir",
+            #                 },
+            #                 "new_file_path": {
+            #                     "type": "string",
+            #                     "description": "New path for the file, relative to current dir",
+            #                 }
+            #             },
+            #             "required": ["old_file_path", "new_file_path"],
+            #         },
+            #     },
+            # },
             {
                 "type": "function",
                 "function": {
@@ -409,6 +440,7 @@ if __name__ == "__main__":
     # delete_file_result = files_tool_instance.delete_file(renamed_file_path)
     # print(f"Deleting file '{renamed_file_path}': {delete_file_result.output}")
     # input("Press ENTER to continue...")
+
 
 
 

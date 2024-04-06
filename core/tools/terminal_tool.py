@@ -9,6 +9,10 @@ import re
 
 class TerminalTool(Tool):
     def __init__(self):
+        """
+        Initializes the TerminalTool instance by setting up a temporary directory for logs,
+        retrieving the container ID, and initializing terminal sessions.
+        """
         self.logs_dir = tempfile.mkdtemp()
         container_id = get_docker_container_id("workspace_dev-env_1")
         if container_id is None:
@@ -18,11 +22,17 @@ class TerminalTool(Tool):
         self.initialize_terminal_sessions()
 
     def initialize_terminal_sessions(self):
-        # Initialize the Terminal_Sessions module with an empty list
-        self.working_memory.add_or_update_module("Terminal_Sessions", [])
+        """
+        Initializes the TerminalSessions module with an empty list if it doesn't already exist.
+        """
+        if not self.working_memory.get_module("TerminalSessions"):
+            self.working_memory.add_or_update_module("TerminalSessions", [])
 
     def new_terminal_session(self) -> str:
-        terminal_sessions = self.working_memory.get_module("Terminal_Sessions")
+        """
+        Creates a new terminal session and returns its session ID.
+        """
+        terminal_sessions = self.working_memory.get_module("TerminalSessions")
         session_id = f"session_{len(terminal_sessions) + 1}"
         log_file_path = os.path.join(self.logs_dir, f"{session_id}.log")
         # Ensure to kill a previous version of the tmux session if it exists
@@ -33,39 +43,58 @@ class TerminalTool(Tool):
             # Using script to capture session output, including timestamps
             command = f"tmux new-session -d -s {session_id} 'script -q -f {log_file_path} -c \"docker exec -it {self.container_name} /bin/bash\"'"
             subprocess.run(command, shell=True, check=True)
-            terminal_sessions.append({"session_id": session_id, "session_history": []})
-            self.working_memory.add_or_update_module("Terminal_Sessions", terminal_sessions)
+            terminal_sessions.append({"session_id": session_id, "action_history": [], "session_history": []})
+            self.working_memory.add_or_update_module("TerminalSessions", terminal_sessions)
         except subprocess.CalledProcessError as e:
             raise RuntimeError(f"Failed to create new tmux session for {session_id}")
         return session_id
 
-    def close_terminal_session(self, session_id: str):
+    def close_terminal_session(self, session_id: str) -> ToolResult:
+        """
+        Closes the specified terminal session and returns a ToolResult indicating success or failure.
+        """
         # Kill the tmux session
         try:
             command = f"tmux kill-session -t {session_id}"
             subprocess.run(command, shell=True, check=True)
             # Update the session module from working memory to remove the closed session
-            terminal_sessions = self.working_memory.get_module("Terminal_Sessions")
+            terminal_sessions = self.working_memory.get_module("TerminalSessions")
+            closed_session = [session for session in terminal_sessions if session["session_id"] == session_id]
             terminal_sessions = [session for session in terminal_sessions if session["session_id"] != session_id]
-            self.working_memory.add_or_update_module("Terminal_Sessions", terminal_sessions)
+            self.working_memory.add_or_update_module("TerminalSessions", terminal_sessions)
+            if closed_session:
+                return ToolResult(success=True, output=f"CLOSED session_id: {closed_session[0]}", exit_code=0)
+            else:
+                return ToolResult(success=False, output="Session ID not found", exit_code=1)
         except subprocess.CalledProcessError as e:
-            raise RuntimeError(f"Failed to kill tmux session {session_id}")
-
+            return ToolResult(success=False, output=f"Failed to kill tmux session {session_id}", exit_code=1)
+    
     def send_terminal_command(self, session_id: str, command: str) -> ToolResult:
-        # Send command to the tmux session
+        """
+        Sends a command to the specified terminal session and updates the session's action and history.
+        """
         tmux_command = f"tmux send-keys -t {session_id} '{command}' Enter"
         try:
             subprocess.run(tmux_command, shell=True, check=True)
-            # Update the session history from the log file after sending the command
-            time.sleep(5)
-            self.get_and_update_terminal_session_history(session_id)
+            time.sleep(5)  # Wait for the command to be executed and logged
+            self.update_action_history(session_id, command)
+            self.get_latest_terminal_session_history(session_id)
             return ToolResult(success=True, output="Command executed", exit_code=0)
         except subprocess.CalledProcessError as e:
             return ToolResult(success=False, output="Failed to send command to tmux session", exit_code=1)
 
-    def get_and_update_terminal_session_history(self, session_id: str) -> str:
+    def update_action_history(self, session_id: str, command: str):
+        """Updates the action history of a terminal session with the command sent."""
+        terminal_sessions = self.working_memory.get_module("TerminalSessions")
+        for session in terminal_sessions:
+            if session["session_id"] == session_id:
+                session["action_history"].append(command)
+                self.working_memory.add_or_update_module("TerminalSessions", terminal_sessions)
+                break
+
+    def get_latest_terminal_session_history(self, session_id: str) -> str:
         """Returns the command history of a terminal session, including timestamps."""
-        terminal_sessions = self.working_memory.get_module("Terminal_Sessions")
+        terminal_sessions = self.working_memory.get_module("TerminalSessions")
         for session in terminal_sessions:
             if session["session_id"] == session_id:
                 log_file_path = os.path.join(self.logs_dir, f"{session_id}.log")
@@ -78,7 +107,7 @@ class TerminalTool(Tool):
                         clean_log_content = re.sub(r'Script started.*?\n|Script done.*?\n', '', clean_log_content)
                         new_session_history = clean_log_content.splitlines()
                         session["session_history"] = new_session_history  # Entirely replace the session_history
-                        self.working_memory.add_or_update_module("Terminal_Sessions", terminal_sessions)
+                        self.working_memory.add_or_update_module("TerminalSessions", terminal_sessions)
                         return "\n".join(new_session_history)
                 except FileNotFoundError:
                     return "Log file not found. It's possible the session has not generated any output yet."
@@ -87,34 +116,34 @@ class TerminalTool(Tool):
     @staticmethod
     def schema() -> list[dict]:
         """
-        Returns the JSON schema for TerminalTool function calls.
+        Returns the OpenAPI JSON schema for function calls.
         """
         return [
-            {
-                "type": "function",
-                "function": {
-                    "name": TerminalTool.new_terminal_session.__name__,
-                    "description": TerminalTool.new_terminal_session.__doc__,
-                    "parameters": {},
-                },
-            },
-            {
-                "type": "function",
-                "function": {
-                    "name": TerminalTool.close_terminal_session.__name__,
-                    "description": TerminalTool.close_terminal_session.__doc__,
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "session_id": {
-                                "type": "string",
-                                "description": "The session ID of the terminal session to close.",
-                            }
-                        },
-                        "required": ["session_id"],
-                    },
-                },
-            },
+            # {
+            #     "type": "function",
+            #     "function": {
+            #         "name": TerminalTool.new_terminal_session.__name__,
+            #         "description": TerminalTool.new_terminal_session.__doc__,
+            #         "parameters": {},
+            #     },
+            # },
+            # {
+            #     "type": "function",
+            #     "function": {
+            #         "name": TerminalTool.close_terminal_session.__name__,
+            #         "description": TerminalTool.close_terminal_session.__doc__,
+            #         "parameters": {
+            #             "type": "object",
+            #             "properties": {
+            #                 "session_id": {
+            #                     "type": "string",
+            #                     "description": "The session ID of the terminal session to close.",
+            #                 }
+            #             },
+            #             "required": ["session_id"],
+            #         },
+            #     },
+            # },
             {
                 "type": "function",
                 "function": {
@@ -136,6 +165,23 @@ class TerminalTool(Tool):
                     },
                 },
             },
+        {
+            "type": "function",
+            "function": {
+                "name": TerminalTool.get_latest_terminal_session_history.__name__,
+                "description": TerminalTool.get_latest_terminal_session_history.__doc__,
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "session_id": {
+                            "type": "string",
+                            "description": "The session ID for which the command history will be retrieved.",
+                        }
+                    },
+                    "required": ["session_id"],
+                },
+            },
+        },
         ]
 
 if __name__ == "__main__":
@@ -160,9 +206,9 @@ if __name__ == "__main__":
     second_execution_result = terminal_tool_instance.send_terminal_command(second_session_id, second_command)
     print(f"Dispatched command to second session: {second_command}\nExecution Result: {second_execution_result.output}")
 
-    # Terminate the first terminal session
-    terminal_tool_instance.close_terminal_session(first_session_id)
-    print(f"First terminal session with ID {first_session_id} has been terminated.")
+    # # Terminate the first terminal session
+    # terminal_tool_instance.close_terminal_session(first_session_id)
+    # print(f"First terminal session with ID {first_session_id} has been terminated.")
 
     # # Terminate the second terminal session
     # terminal_tool_instance.close_terminal_session(second_session_id)
