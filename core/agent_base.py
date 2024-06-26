@@ -126,99 +126,101 @@ class BaseAssistant:
                 break
 
     async def execute_run_action(self, run_id, thread_id):
-        run = BaseAssistant.get_run(thread_id, run_id)
-        required_action = run.required_action if run.status == "requires_action" else None
-        logging.info(f"Debug: Required action for run_id {run_id} is {required_action}")
+        try:
+            run = BaseAssistant.get_run(thread_id, run_id)
+            required_action = run.required_action if run.status == "requires_action" else None
+            logging.info(f"Executing run action for run_id {run_id} with required action: {required_action}")
 
-        if required_action and required_action.type == "submit_tool_outputs":
-            tool_calls = required_action.submit_tool_outputs.tool_calls
-            tool_outputs = []
-            logging.info(f"Debug: Processing {len(tool_calls)} tool calls for submission.")
+            if required_action and required_action.type == "submit_tool_outputs":
+                tool_calls = required_action.submit_tool_outputs.tool_calls
+                tool_outputs = []
+                logging.info(f"Processing {len(tool_calls)} tool calls for submission.")
 
-            # Access to all tools as per file_context_0 and file_context_1
-            task_tool = TaskTool()
-            files_tool = FilesTool()
-            terminal_tool = TerminalTool()
-            browser_tool = BrowserTool()
+                # Access to all tools as per file_context_0 and file_context_1
+                task_tool = TaskTool()
+                files_tool = FilesTool()
+                terminal_tool = TerminalTool()
+                browser_tool = BrowserTool()
 
+                for tool_call in tool_calls:
+                    function_name = tool_call.function.name
+                    arguments = json.loads(tool_call.function.arguments)
+                    logging.info(f"Attempting to execute function {function_name} with arguments {arguments}")
 
-            for tool_call in tool_calls:
-                function_name = tool_call.function.name
-                arguments = json.loads(tool_call.function.arguments)
-                logging.info(f"Debug: Attempting to execute function {function_name} with arguments {arguments}")
+                    # Dynamically call the function with the provided arguments
+                    try:
+                        # Attempt to find the function in any tool instance
+                        function = None
+                        for tool_instance in [task_tool, files_tool, terminal_tool, browser_tool]:
+                            if hasattr(tool_instance, function_name):
+                                function = getattr(tool_instance, function_name)
+                                logging.info(f"Found function {function_name} in {type(tool_instance).__name__}")
+                                break
 
-                # Dynamically call the function with the provided arguments
-                try:
-                    # Attempt to find the function in any tool instance
-                    function = None
-                    for tool_instance in [task_tool, files_tool, terminal_tool, browser_tool]:
-                        if hasattr(tool_instance, function_name):
-                            function = getattr(tool_instance, function_name)
-                            logging.info(f"Debug: Found function {function_name} in {type(tool_instance).__name__}")
-                            break
-
-                    if function:
-                        # Execute the function asynchronously if it's a coroutine
-                        if inspect.iscoroutinefunction(function):
-                            output = await function(**arguments)
+                        if function:
+                            # Execute the function asynchronously if it's a coroutine
+                            if inspect.iscoroutinefunction(function):
+                                output = await function(**arguments)
+                            else:
+                                output = function(**arguments)
+                            logging.info(f"Function {function_name} executed successfully with output: {output}")
+                            # Extract the output if it's an instance of ToolResult
+                            if isinstance(output, ToolResult):
+                                output = output.output
                         else:
-                            output = function(**arguments)
-                        logging.info(f"Debug: Function {function_name} executed successfully with output: {output}")
-                        # Extract the output if it's an instance of ToolResult
-                        if isinstance(output, ToolResult):
-                            output = output.output
-                    else:
-                        output = "Function not found"
-                        logging.info(f"Debug: Function {function_name} not found in any tool instance")
+                            output = "Function not found"
+                            logging.info(f"Function {function_name} not found in any tool instance")
+                    except Exception as e:
+                        output = f"An exception has occurred: {e}"
+                        logging.error(f"Exception occurred while executing function {function_name}: {e}", exc_info=True)
+
+                    tool_outputs.append({
+                        "tool_call_id": tool_call.id,
+                        "output": str(output)  # Convert output to string to avoid type error
+                    })
+
+                # Submit the tool outputs
+                try:
+                    run = client.beta.threads.runs.submit_tool_outputs(
+                        thread_id=thread_id,
+                        run_id=run_id,
+                        tool_outputs=tool_outputs
+                    )
+                    logging.info(f"Successfully submitted tool outputs for run_id {run_id}")
                 except Exception as e:
-                    output = f"An exception has occurred: {e}"
-                    logging.info(f"Debug: Exception occurred while executing function {function_name}: {e}")
-
-                tool_outputs.append({
-                    "tool_call_id": tool_call.id,
-                    "output": str(output)  # Convert output to string to avoid type error
-                })
-
-            # Submit the tool outputs
-            try:
-                run = client.beta.threads.runs.submit_tool_outputs(
-                    thread_id=thread_id,
-                    run_id=run_id,
-                    tool_outputs=tool_outputs
-                )
-                logging.info(f"Debug: Successfully submitted tool outputs for run_id {run_id}")
-            except Exception as e:
-                logging.info(f"Failed to submit tool outputs for run_id {run_id}: {e}")
-    
+                    logging.error(f"Failed to submit tool outputs for run_id {run_id}: {e}", exc_info=True)
+        except Exception as e:
+            logging.error(f"An error occurred during execute_run_action: {e}", exc_info=True)
     
     def internal_monologue(self, thread_id, monologue_system_message):
-        messages_in_thread = self.get_messages_in_thread(thread_id, stringified=True)
-        # Include working memory in the user message
+        try:
+            messages_in_thread = self.get_messages_in_thread(thread_id, stringified=True)
+            # Include working memory in the user message
 
-        working_memory_content = json.dumps(working_memory.export_memory(), indent=3)
-        
-        messages = [
-            {
-                "role": "system",
-                "content": f"{monologue_system_message}"
-            },
-            {
-                "role": "user",
-                "content": f"<ConversationHistory> {messages_in_thread} </ConversationHistory> \n <WorkingMemory> {working_memory_content} </WorkingMemory>"
-            },
-        ]
-        response = make_llm_api_call(messages, model_name="gpt-4-turbo-preview", json_mode=True)
-        new_message_contents = response.choices[0].message['content']
-        self.add_message(thread_id, new_message_contents, role="user")
-        return new_message_contents
-
+            working_memory_content = json.dumps(working_memory.export_memory(), indent=3)
+            
+            messages = [
+                {
+                    "role": "system",
+                    "content": f"{monologue_system_message}"
+                },
+                {
+                    "role": "user",
+                    "content": f"<ConversationHistory> {messages_in_thread} </ConversationHistory> \n <WorkingMemory> {working_memory_content} </WorkingMemory>"
+                },
+            ]
+            logging.info(f"Preparing internal monologue with system message: {monologue_system_message}")
+            response = make_llm_api_call(messages, model_name="gpt-4-turbo-preview", json_mode=True)
+            new_message_contents = response.choices[0].message['content']
+            self.add_message(thread_id, new_message_contents, role="user")
+            logging.info(f"Internal monologue completed and message added to thread {thread_id}")
+            return new_message_contents
+        except Exception as e:
+            logging.error(f"An error occurred during internal_monologue: {e}", exc_info=True)
 
     def generate_playground_access(self, thread_id):
-        playground_url = f'https://platform.openai.com/playground?assistant={self.assistant_id}&mode=assistant&thread={thread_id}'
-        logging.info(f'Playground Access URL: {playground_url}')
-
-
-
-
-
-
+        try:
+            playground_url = f'https://platform.openai.com/playground?assistant={self.assistant_id}&mode=assistant&thread={thread_id}'
+            logging.info(f'Playground Access URL: {playground_url}')
+        except Exception as e:
+            logging.error(f"An error occurred while generating playground access URL: {e}", exc_info=True)

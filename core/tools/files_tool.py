@@ -1,4 +1,5 @@
 import os
+import logging
 from .base import Tool, ToolResult
 from ..utils.llm import make_llm_api_call
 from ..utils.file_utils import find_files, EXCLUDED_FILES, EXCLUDED_DIRS, EXCLUDED_EXT, _should_exclude
@@ -15,17 +16,21 @@ class FilesTool(Tool):
         """
         Initialize the FilesTool with a base path and a working memory instance.
         """
+        logging.info("Initializing FilesTool")
         self.base_path = "/root/softgen.ai/mirko.ai/working_directory" # Hard coded for now
         self.working_memory = WorkingMemory()        
         self.initialize_files()
+        logging.info("FilesTool initialized successfully")
 
     def initialize_files(self):
         """
         Initialize the files in the working directory by reading the directory contents.
         """
+        logging.info("Initializing files in the working directory")
         if not self.working_memory.get_module("WorkspaceDirectoryContents"):
             self.working_memory.add_or_update_module("WorkspaceDirectoryContents", [])
         self.read_directory_contents("") # Hardcoded initialises with full latest WorkspaceDirectoryContents
+        logging.info("Files in the working directory initialized successfully")
 
     def _get_effective_path(self, path: str) -> str:
         """
@@ -34,6 +39,7 @@ class FilesTool(Tool):
         :param path: The path to process.
         :return: The effective path.
         """
+        logging.info(f"Getting effective path for: {path}")
         # Handling . and ~ to avoid touching things outside base_path.
         path_parts = path.split(os.sep)
         if "." in path_parts:
@@ -41,6 +47,7 @@ class FilesTool(Tool):
             effective_path = os.path.join(self.base_path, *remaining_path)
         else:
             effective_path = os.path.join(self.base_path, path)
+        logging.info(f"Effective path obtained: {effective_path}")
         return effective_path
 
 
@@ -54,8 +61,10 @@ class FilesTool(Tool):
         :param instructions: Instructions on how to edit the file.
         :return: Result of the editing operation.
         """
+        logging.info(f"Editing file contents for: {file_path} with instructions: {instructions}")
         effective_path = self._get_effective_path(file_path)
         if not os.path.exists(effective_path):
+            logging.error(f"File {file_path} does not exist.")
             return ToolResult(success=False, output=f"File {file_path} does not exist.", exit_code=1)
         try:
             with open(effective_path, 'r') as file:
@@ -69,8 +78,10 @@ class FilesTool(Tool):
                 {"role": "user", "content": f"This is the current content of the file you are editing '{file_path}':\n\n<current_content>{current_content}</current_content> \nYou are now implement the following instructions for {file_path}: {instructions}\n.\n.Respond in this JSON Format, OUTPUT EVERYTHING IN FOLLOWING JSON PROPERTIES, do not add new properties but output in File, FileName, newFileContents. Make sure to ONLY EDIT {file_path}. Strictly respond in this JSON Format:\n\n {{\n  \"File\": {{\n    \"FilePath\": \"{file_path}\",\n    \"newFileContents\": \"The whole file contents, the complete code – The contents of the new file with all instructions implemented perfectly. NEVER write comments. Keep the complete File Contents within this single JSON Property.\"}}\n}}\n"}
             ]
             # Make LLM API call and parse the response
+            logging.info(f"Making LLM API call for editing file: {file_path}")
             response = make_llm_api_call(messages, "gpt-4-turbo-preview", json_mode=True, max_tokens=4096) 
             response_content = response.choices[0].message['content']
+            logging.info(f"LLM API call response received for file edit: {file_path}")
             response_json = json.loads(response_content)
             new_content = response_json["File"]["newFileContents"]
 
@@ -82,8 +93,10 @@ class FilesTool(Tool):
             with open(effective_path, 'r') as file:
                 updated_content = file.read()
                 
+            logging.info(f"File {file_path} edited successfully. Latest content updated.")
             return self.success_response(f"File {file_path} edited successfully. Latest content: {updated_content}")
         except Exception as e:
+            logging.error(f"An error occurred while editing file contents for {file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
 # <----> Basic File Ops
@@ -92,58 +105,75 @@ class FilesTool(Tool):
         """
         Create a file at file_path, path is relative to current dir. Create the directory too if it's given in the path.
         """
+        logging.info(f"Creating file at path: {file_path}")
         effective_path = self._get_effective_path(file_path)
         if os.path.exists(effective_path):
+            logging.error("File already exists")
             return self.fail_response("File already exists")
         try:
             os.makedirs(os.path.dirname(effective_path), exist_ok=True)
             with open(effective_path, 'w') as file:
                 file.close()
+            logging.info(f"File {file_path} created successfully")
             return self.success_response(f"File {file_path} created successfully")
         except Exception as e:
+            logging.error(f"An error occurred while creating file at {file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
     def move_file(self, current_file_path: str, new_file_path: str) -> ToolResult:
         """
         Move a file from current_file_path to new_file_path, both paths are relative to current dir
         """
+        logging.info(f"Moving file from {current_file_path} to {new_file_path}")
         current_effective_path = self._get_effective_path(current_file_path)
         new_effective_path = self._get_effective_path(new_file_path)
         if not os.path.exists(current_effective_path):
+            logging.error("Current file does not exist")
             return self.fail_response("Current file does not exist")
         try:
             os.rename(current_effective_path, new_effective_path)
+            logging.info(f"File moved from {current_file_path} to {new_file_path}")
             return self.success_response(f"File renamed from {current_file_path} to {new_file_path}")
         except Exception as e:
+            logging.error(f"An error occurred while moving file from {current_file_path} to {new_file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
     def rename_file(self, old_file_path: str, new_file_path: str) -> ToolResult:
         """
         Rename a file from old_file_path to new_file_path, paths are relative to current dir
         """
+        logging.info(f"Renaming file from {old_file_path} to {new_file_path}")
         old_effective_path = self._get_effective_path(old_file_path)
         new_effective_path = self._get_effective_path(new_file_path)
         if not os.path.exists(old_effective_path):
+            logging.error("Old file does not exist")
             return self.fail_response("Old file does not exist")
         if os.path.exists(new_effective_path):
+            logging.error("New file name already exists")
             return self.fail_response("New file name already exists")
         try:
             os.rename(old_effective_path, new_effective_path)
+            logging.info(f"File renamed from {old_file_path} to {new_file_path}")
             return self.success_response(f"File renamed from {old_file_path} to {new_file_path}")
         except Exception as e:
+            logging.error(f"An error occurred while renaming file from {old_file_path} to {new_file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
     def delete_file(self, file_path: str) -> ToolResult:
         """
         Delete the file at file_path, path is relative to current dir
         """
+        logging.info(f"Deleting file at path: {file_path}")
         effective_path = self._get_effective_path(file_path)
         if not os.path.exists(effective_path):
+            logging.error("File does not exist")
             return self.fail_response("File does not exist")
         try:
             os.remove(effective_path)
+            logging.info(f"File {file_path} deleted successfully")
             return self.success_response(f"File {file_path} deleted successfully")
         except Exception as e:
+            logging.error(f"An error occurred while deleting file at {file_path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
 
@@ -153,52 +183,66 @@ class FilesTool(Tool):
         """
         List path recursively with limited depth. Path is relative to current dir.
         """
+        logging.info(f"Getting file tree for path: {path} with depth: {depth}")
         if not os.path.exists(self.base_path):
+            logging.error("Base path does not exist")
             return self.fail_response("Base path does not exist")
 
         if "~" in path:
+            logging.error("Path cannot contain ~")
             return self.fail_response("Path cannot contain ~")
         effective_path = self._get_effective_path(path)
         if not os.path.commonpath([self.base_path, effective_path]) == os.path.normpath(
             self.base_path
         ):
+            logging.error("Path is not within the base path")
             return ToolResult(
                 success=False, output="Path is not within the base path", exit_code=1
             )
         try:
             listed_paths = find_files(effective_path, depth)
+            logging.info(f"File tree retrieved successfully for path: {path}")
             return self.success_response({"paths": listed_paths})
         except Exception as e:
+            logging.error(f"An error occurred while getting file tree for path: {path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
     def read_file_contents(self, path: str) -> ToolResult:
         """
         Show the contents of the file at path relative to current dir
         """
+        logging.info(f"Reading file contents for path: {path}")
         if not os.path.exists(self.base_path):
+            logging.error("Base path does not exist")
             return self.fail_response("Base path does not exist")
         effective_path = self._get_effective_path(path)
         if not os.path.commonpath([self.base_path, effective_path]) == os.path.normpath(
             self.base_path
         ):
+            logging.error("Path is not within the base path")
             return ToolResult(
                 success=False, output="Path is not within the base path", exit_code=1
             )
         if os.path.exists(effective_path):
             with open(effective_path, "r") as file:
                 text = file.read()
+            logging.info(f"File contents read successfully for path: {path}")
             return self.success_response(text)
         else:
+            logging.error("File does not exist")
             return self.fail_response("File does not exist")
 
     def read_directory_contents(self, path: str, depth: int = 3) -> ToolResult:
         """
         List all files and directories at the given path, including their contents, while excluding certain files and directories as specified in file_utils.py, up to a specified depth. Updates the WorkspaceDirectoryContents Module in working memory with the directory contents.
         """
+        logging.info(f"Reading directory contents for path: {path} with depth: {depth}")
         if not os.path.exists(self.base_path):
+            logging.error("Base path does not exist")
             return self.fail_response("Base path does not exist")
         effective_path = self._get_effective_path(path)
         if not os.path.exists(effective_path) or not os.path.isdir(effective_path):
+            logging.error("Directory does not exist or is not a directory")
             return self.fail_response("Directory does not exist or is not a directory")
 
         try:
@@ -226,8 +270,10 @@ class FilesTool(Tool):
                                 continue
             # Update the WorkspaceDirectoryContents Module in working memory
             self.working_memory.add_or_update_module("WorkspaceDirectoryContents", directory_contents)
+            logging.info(f"Directory contents read successfully for path: {path}")
             return self.success_response({"contents": directory_contents})
         except Exception as e:
+            logging.error(f"An error occurred while reading directory contents for path: {path}: {e}", exc_info=True)
             return ToolResult(success=False, output=str(e), exit_code=1)
 
 
@@ -393,6 +439,7 @@ class FilesTool(Tool):
 
 
 if __name__ == "__main__":
+    logging.info("FilesTool script execution started")
     # Initialize the FilesTool instance
     files_tool_instance = FilesTool()
 
@@ -439,8 +486,6 @@ if __name__ == "__main__":
     # # Step 8: Example usage of deleting the renamed file
     # delete_file_result = files_tool_instance.delete_file(renamed_file_path)
     # print(f"Deleting file '{renamed_file_path}': {delete_file_result.output}")
-    # input("Press ENTER to continue...")
-
-
-
+    # input("Press ENTER to continue..."
+    logging.info("FilesTool script execution completed")
 

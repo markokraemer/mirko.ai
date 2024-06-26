@@ -23,6 +23,8 @@ def make_llm_api_call(messages, model_name, json_mode=False, temperature=0, max_
 
     litellm.set_verbose=True
 
+    logging.info(f"Making LLM call with model {model_name} and messages: {messages}")
+
     def attempt_api_call(api_call_func, max_attempts=3):
         for attempt in range(max_attempts):
             try:
@@ -33,14 +35,16 @@ def make_llm_api_call(messages, model_name, json_mode=False, temperature=0, max_
                         logging.info(f"Invalid JSON received, retrying attempt {attempt + 1}")
                         continue
                     else:
+                        logging.info(f"LLM call response: {response_content}")
                         return response
                 else:
+                    logging.info(f"LLM call response: {response_content}")
                     return response
             except OpenAIError as e:
-                logging.info(f"API call failed, retrying attempt {attempt + 1}. Error: {e}")
+                logging.error(f"API call failed, retrying attempt {attempt + 1}. Error: {e}", exc_info=True)
                 time.sleep(5)
             except json.JSONDecodeError:
-                logging.error(f"JSON decoding failed, retrying attempt {attempt + 1}")
+                logging.error(f"JSON decoding failed, retrying attempt {attempt + 1}", exc_info=True)
                 time.sleep(5)
         raise Exception("Failed to make API call after multiple attempts.")
 
@@ -55,6 +59,7 @@ def make_llm_api_call(messages, model_name, json_mode=False, temperature=0, max_
         if tools:
             api_call_params["tools"] = tools
             api_call_params["tool_choice"] = tool_choice
+        logging.info(f"LLM API call parameters set for model {model_name}: {api_call_params}")
         return completion(**api_call_params)
 
     return attempt_api_call(api_call)
@@ -72,6 +77,8 @@ if __name__ == "__main__":
 
     messages = [{"role": "user", "content": "Create a xxy.txt and read its contents"}]
     model_name = "gpt-4-turbo-preview"
+    logging.info(f"Initiating LLM call with model {model_name} and messages: {messages}")
     response = make_llm_api_call(messages, model_name, json_mode=False, temperature=0.5, tools=tools)
     response_message = response.choices[0].message
+    logging.info(f"LLM call completed with response: {response_message}")
     
