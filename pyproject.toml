@@ -6,9 +6,7 @@ authors = ["null"]
 license = "MIT"
 readme = "README.md"
 packages = [
-    {include = "abilities"},
-    {include = "layers"},
-    {include = "memory"}
+    {include = "core"},
 ]
 
 [tool.poetry.dependencies]
@@ -17,6 +15,7 @@ docker = "^7.0.0"
 pytest = "^8.1.1"
 pytest-approvaltests = "^0.2.4"
 pyfakefs = "^5.3.5"
+streaming-assistants = "^0.14.0"
 
 
 [build-system]
